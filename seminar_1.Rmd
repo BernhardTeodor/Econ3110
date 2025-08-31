@@ -1,0 +1,249 @@
+---
+title: "Seminar 1 Econ3110"
+author: "Bernhard Teodor Thodesen"
+date: "2025-08-31"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+```{r include=FALSE}
+library(knitr)
+```
+
+## Oppgave 1 - Dataframe
+
+```{r}
+library(tidyverse)
+
+car <- data.frame(mtcars)
+```
+
+### a)
+
+*Last inn det innebygde datasettet ‘mtcars’ ved å bruke data(mtcars). Finn gjennomsnitt, median og varians til alle variablane i datasettet.*
+
+```{r}
+
+deskriptiv_stat <- function(x) c(mean = round(mean(x),4), 
+                                 median = round(median(x),4),
+                                 varians = round(var(x),4))
+
+
+kable(sapply(car, deskriptiv_stat))
+
+```
+
+### b)
+
+*Variabelen ‘wt’ viser vekta til kvar observasjon i 1000 pund (lb). Eitt pund er 0.45 kg. Konverter vektvari- abelen til tonn. Lag deretter ein ny variabel som er hestekrefter (hp) per tonn.*
+
+```{r}
+
+car <- car |> 
+  mutate(wt = wt*0.45) |> 
+  mutate(hestekrefter = hp/wt)
+  
+```
+
+### c)
+
+*I datasettet er namna på radane bilmoddellen. Lag ei eiga kolonne med namnet på bilmodellane. Endre radnamna i datasettet til radnummer*
+
+```{r}
+brands <- row.names(car)
+
+car <- car |> mutate(brand = brands)
+
+row.names(car) <- 1:length(brands)
+```
+
+### d)
+
+*Finn namnet på dei tre bilane med høgast verdi av mpg. Finn deretter dei tre bilane med lågast vekt (wt)*
+
+```{r}
+
+car |> arrange(desc(wt)) |> 
+  slice(1:3)
+
+#car |> slice_max(wt, n = 3) 
+
+car |> slice_min(wt, n = 3) 
+```
+
+### e)
+
+*Kolonna du laga i c) viser kva både modell og produsent for bilen. Det første ordet i kvar rad viser produsent og resten kva modell det er. Lag ei kolonne ‘producer’ som viser produsenten til bilen. [Hint: ein måte er å bruke ‘substr’ og finne dei tre første bokstavane til kvar observasjon av ‘brand’.*
+
+```{r}
+producer <- c()
+
+for (i in 1:length(brands))
+{
+  splitta_navn <- str_split_1(brands[i], " ")
+  producer[i] <- splitta_navn[1]
+}
+
+producer
+
+car <- car |> mutate(producer = producer)
+
+car |> head()
+```
+
+### f)
+
+```{r}
+#car |> 
+# group_by(producer) |> 
+#  summarise(mpg = mean(mpg),
+#            cyl = mean(cyl),
+#            disp = mean(disp))
+#           
+
+car |> 
+  select(-brand) |> 
+  group_by(producer) |> 
+  summarise_all(~round(mean(.),1)) |> 
+  kable()
+
+```
+
+## Oppgave 2 - bootstrapping
+
+### a)
+
+*Last inn ‘mtcars’ på nytt. Trekk 32 tilfeldige radnummer frå ‘mtcars’ med tilbakelegging, og lag ein ny data.frame du kallar ‘df’ med desse trekte observasjonane. [Du kan gjere det som beskrive ovanfor med ‘sample’, evt. bruk ‘sample_n’/‘slice_sample’ frå ‘dplyr’-pakken.]*
+
+```{r}
+
+bil <- data.frame(mtcars)
+
+bil <- bil |> 
+  slice_sample(n = 32, replace = T)
+```
+
+### a) ekstra
+
+*Lag ein funksjon i R som for ein kvar data.frame trekk n tilfeldige radnummer med tilbakelegging, der n er talet rader i data.framen, og returnerer ein data.frame med desse n trekte observasjonane.*
+
+```{r}
+
+slicer <- function(df, n, tilbakelegging = 1) # Kun base r
+  ### INput: df: dataframe, n: int ###
+  ### funksjonen returnere en dataframe med n tilfeldige observasjoner fra df.###
+  ### Output: dataframe###
+{
+  rader <- sample(1:nrow(df),n, replace = tilbakelegging)
+  return(df[rader,])
+}
+
+
+slicer(bil, 32) |> head()
+
+```
+
+### b)
+
+*Bruk ein for-loop til å repetere a) 1000 gonger. For kvar replikasjon, lagre gjennomsnittet til ‘mpg’ i ein vektor du kallar ‘bs’*
+
+```{r}
+
+bs <- c()
+
+for(i in 1:1000)
+{
+  a <- slicer(bil, 32)
+  bs[i] <- mean(a$mpg)
+  
+}
+```
+
+### c)
+
+*Lag eit histogram over ‘bs’ og finn gjennomsnitt og varians. Samanlikn med gjennomsnitt og varians til ‘mpg’ i ‘mtcars’ (eller ‘var(mtcars\$mpg)/32’).*
+
+```{r}
+
+hist(bs,main = paste("Histogram av bs gj:",round(mean(bs),3), "varians: ", round(var(bs),3)))
+abline(v = mean(bs), col = "blue")
+legend("topright", legend = "mean", fill = "blue")
+```
+
+Estimator varians:
+
+$$ S^2 = \frac{\sum (x_i - \bar{x})^2}{n - 1}$$
+
+$$ \frac{S^2}{32} = \frac{\sum (x_i - \bar{x})^2}{n - 1} \cdot \frac{1}{32}$$
+
+Hvorfor er vi interessert i dette???
+
+## Oppgave 3 - OLS
+
+### a)
+
+*Last inn ‘mtcars’. Lag eit spredningsdiagram med drivstoffforbruk (mpg) på y-aksen og hestekrefter (hp) på x-aksen. Lag passande tittel og namn på aksane. Er det ein positiv eller negativ samanheng mellom dei to variablane? Er samanhengen lineær? (Mpg er miles per gallon. Ein høg verdi av mpg tilseier derfor eit lågt drivstofforbruk.)*
+
+```{r}
+
+df <- data.frame(mtcars)
+
+plot(df$hp, df$mpg, xlab = "Hestekrefter", ylab = "Drivstoffforbruk", main = "Drivstoffbruk mot hestekrefter")
+
+```
+
+Sammenhengen mellom variablene ser ut til å være negativ. Kan kanskje være lineær, ser kanskje litt mer ut som $f(x) = \frac{1}{x}$ eller $f(x) = -ln(x)$
+
+### b)
+
+*Bruk OLS til å estimere* b0 og b1 *i likninga:* $$mpg = \beta_0 + \beta_1hp +\epsilon $$ Bruk ‘predict’ til å finne dei predikerte verdiane av ‘mpg’ og plot desse som ei linje i spredningsdiagrammet frå a).
+
+```{r, results='asis'}
+library(fixest)
+
+mod1 <- feols(mpg ~ hp, data = df)
+
+etable(mod1, tex = T, se.below = F)
+```
+
+Bruke predict:
+
+```{r}
+preds <- data.frame(x_val = df$hp, lin = predict(mod1))
+
+plot(df$hp, df$mpg, xlab = "Hestekrefter", ylab = "Drivstoffforbruk", main = "Drivstoffbruk mot hestekrefter")
+lines(preds$x_val, preds$lin, col = "red")
+legend("topright", legend = "Lineær", fill = "red")
+```
+
+### c)
+
+*Bruk OLS til å estimere b0,b1 og b2 likninga* $$ mpg = \beta_0 + \beta_1hp + \beta_2hp^2 + \epsilon$$ Bruk ‘predict’ til å finne dei predikerte verdiane av ‘mpg’ og plot desse som ei linje i spredningsdiagrammet frå a). 4
+
+```{r,results='asis'}
+mod2 <- feols(mpg ~ hp + hp^2, data = df)
+
+etable(mod2, tex = T, se.below = F)
+
+```
+
+```{r}
+pred2 <- predict(mod2)
+
+preds2 <- data.frame(x = df$hp, y = pred2)
+
+preds2 <- preds2 |> 
+  arrange(x)
+
+
+plot(df$hp, df$mpg, xlab = "Hestekrefter", ylab = "Drivstoffforbruk", main = "Drivstoffbruk mot hestekrefter")
+lines(preds$x_val, preds$lin, col = "red")
+lines(preds2$x, preds2$y, col = "blue")
+legend("topright", legend = c("lineær", "kvadrert"), fill = c("red", "blue"))
+```
