@@ -1,0 +1,122 @@
+---
+title: "Seminar2_Econ3110"
+author: "Bernhard Teodor Thodesen"
+date: "2025-09-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+```{r include=FALSE}
+library(knitr)
+```
+
+## Oppgave 1 - Simulere data
+
+### a
+
+*Trekk 10 000 tilfeldige verdier for variablene* $X_1,X_2,X_3,X_4$ fra en standard normalfordeling $X_i~N(\mu = 0, \sigma = 1)$
+
+```{r}
+set.seed(42069)
+
+x_1 <- rnorm(10000)
+x_2 <- rnorm(10000)
+x_3 <- rnorm(10000)
+x_4 <- rnorm(10000)
+```
+
+### b
+
+*Definer utfallsvariablen Y som:*
+
+$$Y = 0.5X_1 + 1.9X_2 - 0.2X^2_2 - 0.6X_3 + \varepsilon \quad (1)$$ *hvor* $\varepsilon = N(0,0.1)$
+
+```{r}
+
+Y <- 0.5*x_1 + 1.9*x_2 - 0.2*x_2^2 - 0.6*x_3 + rnorm(10000, 0, 0.1)
+
+```
+
+### C
+
+*Samle alle variablene* $Y,X_1,X_2,X_3, X_4$ i et datasett
+
+```{r}
+
+df <- data.frame("y" = Y, "x_1" = x_1, "x_2" = x_2, "x_3" = x_3, "x_4" = x_4)
+
+```
+
+## Oppgave 2 - OLS
+
+### a 
+*Estimer $Y$ med 3 OLS med ulike funksjonelle former hvorav en må være lik $(1)$*
+
+```{r, include=FALSE}
+library(fixest)
+```
+
+```{r}
+
+mod_1 <- feols(y~ x_1 + x_2 + I(x_2^2) + x_3, data = df)
+
+mod_2 <- feols(y~ x_1 + x_2 + x_3 + x_4, data = df)
+
+mod_3 <- feols(y~ x_2 + x_3, data = df)
+```
+
+
+### b
+
+*Hvilken modell har høyest within-sample forklaringskraft $(R^2)$*
+
+```{r}
+etable(mod_1, mod_2,mod_3)
+```
+
+
+Den første modellen hadde høyest $R^2$
+
+### c
+
+*Test hypotesene om at den sanne parameterene er like til de estimerte OLS koeffisientene for modellen med høyest $R^2$*
+
+$$H_0: \beta_1 = \hat{\beta_1}$$
+$$H_1: \beta_1 \neq \hat{\beta_1}$$
+
+
+
+$$t = \frac{Estimert \space verdi - hypotisert \space verdi}{standarfeilen \space til \space estimat }$$
+
+$$\hat{\beta_1} = 0.4996$$
+$$SE(\hat{\beta_1}) = 0.0010 $$
+
+Siden testen er å sjekke at det ikke er noe forksjell mellom $\hat{\beta}$ og $\beta_1$ er den hypotiserte verdien lik 0.
+
+$$t = \frac{0.4996}{0.0010} = 499.6$$
+En helt ekstrem t-verdi. Størrelsen tilsier en veldig lav p-verdi, noe som igjen tilsier at vi kan forkaste hypoteseb om at det er en forskjell mellom $\hat{\beta}$ og $\beta_1$. 
+$$\text{P-verdi} = 2|\phi(-t)| $$
+$$\text{P-verdi} = 2|\phi(-499.6)| $$
+
+```{r}
+2*(pnorm(-499.6))
+```
+
+
+ELler: 
+
+$$H_0:\beta_1} = 0.5$$
+$$H_1: {\beta_1} \neq 0.5$$
+
+$$t = \frac{0.4996 - 0.5}{0.001}$$
+$$t = -0.4$$
+$$\text{P-verdi} = 2\phi(-|t|) = 2\phi(-0.4)$$
+
+```{r}
+2*pnorm(-1*abs(-0.4))
+```
+$$\text{P-verdi} =0.689$$ 
+Det er altså relativ sannsynlig at $\beta_1$ lik 0.5 som vil si at vi ikke kan forkaste $H_0$
