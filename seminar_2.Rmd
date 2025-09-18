@@ -52,8 +52,9 @@ df <- data.frame("y" = Y, "x_1" = x_1, "x_2" = x_2, "x_3" = x_3, "x_4" = x_4)
 
 ## Oppgave 2 - OLS
 
-### a 
-*Estimer $Y$ med 3 OLS med ulike funksjonelle former hvorav en må være lik $(1)$*
+### a
+
+*Estimer* $Y$ med 3 OLS med ulike funksjonelle former hvorav en må være lik $(1)$
 
 ```{r, include=FALSE}
 library(fixest)
@@ -68,55 +69,174 @@ mod_2 <- feols(y~ x_1 + x_2 + x_3 + x_4, data = df)
 mod_3 <- feols(y~ x_2 + x_3, data = df)
 ```
 
-
 ### b
 
-*Hvilken modell har høyest within-sample forklaringskraft $(R^2)$*
+*Hvilken modell har høyest within-sample forklaringskraft* $(R^2)$
 
 ```{r}
 etable(mod_1, mod_2,mod_3)
 ```
 
-
 Den første modellen hadde høyest $R^2$
 
 ### c
 
-*Test hypotesene om at den sanne parameterene er like til de estimerte OLS koeffisientene for modellen med høyest $R^2$*
+*Test hypotesene om at den sanne parameterene er like til de estimerte OLS koeffisientene for modellen med høyest* $R^2$
 
-$$H_0: \beta_1 = \hat{\beta_1}$$
-$$H_1: \beta_1 \neq \hat{\beta_1}$$
-
-
+$$H_0: \beta_1 = \hat{\beta_1}$$ $$H_1: \beta_1 \neq \hat{\beta_1}$$
 
 $$t = \frac{Estimert \space verdi - hypotisert \space verdi}{standarfeilen \space til \space estimat }$$
 
-$$\hat{\beta_1} = 0.4996$$
-$$SE(\hat{\beta_1}) = 0.0010 $$
+$$\hat{\beta_1} = 0.4996$$ $$SE(\hat{\beta_1}) = 0.0010 $$
 
 Siden testen er å sjekke at det ikke er noe forksjell mellom $\hat{\beta}$ og $\beta_1$ er den hypotiserte verdien lik 0.
 
-$$t = \frac{0.4996}{0.0010} = 499.6$$
-En helt ekstrem t-verdi. Størrelsen tilsier en veldig lav p-verdi, noe som igjen tilsier at vi kan forkaste hypoteseb om at det er en forskjell mellom $\hat{\beta}$ og $\beta_1$. 
-$$\text{P-verdi} = 2|\phi(-t)| $$
-$$\text{P-verdi} = 2|\phi(-499.6)| $$
+$$t = \frac{0.4996}{0.0010} = 499.6$$ En helt ekstrem t-verdi. Størrelsen tilsier en veldig lav p-verdi, noe som igjen tilsier at vi kan forkaste hypoteseb om at det er en forskjell mellom $\hat{\beta}$ og $\beta_1$. $$\text{P-verdi} = 2|\phi(-t)| $$ $$\text{P-verdi} = 2|\phi(-499.6)| $$
 
 ```{r}
 2*(pnorm(-499.6))
 ```
 
+ELler:
 
-ELler: 
+$$H_0:\beta_1} = 0.5$$ $$H_1: {\beta_1} \neq 0.5$$
 
-$$H_0:\beta_1} = 0.5$$
-$$H_1: {\beta_1} \neq 0.5$$
-
-$$t = \frac{0.4996 - 0.5}{0.001}$$
-$$t = -0.4$$
-$$\text{P-verdi} = 2\phi(-|t|) = 2\phi(-0.4)$$
+$$t = \frac{0.4996 - 0.5}{0.001}$$ $$t = -0.4$$ $$\text{P-verdi} = 2\phi(-|t|) = 2\phi(-0.4)$$
 
 ```{r}
 2*pnorm(-1*abs(-0.4))
 ```
-$$\text{P-verdi} =0.689$$ 
-Det er altså relativ sannsynlig at $\beta_1$ lik 0.5 som vil si at vi ikke kan forkaste $H_0$
+
+$$\text{P-verdi} =0.689$$ Det er altså relativ sannsynlig at $\beta_1$ lik 0.5 som vil si at vi ikke kan forkaste $H_0$
+
+
+
+
+## Oppgave 3 -bootstrapping
+
+### a
+
+```{r}
+
+bs = function(x) x[sample(1:nrow(x), nrow(x), replace = 1),]
+
+bs1 <- c()
+bs2 <- c()
+bs3 <- c()
+
+
+for (i in 1:1000)
+{
+  
+  index <- sample(1, 10000, 8000)
+  
+  train <- df[index,]
+  test <- df[-index,]
+  
+  train <- bs(train)
+  
+  ols1 <- lm(y ~ x_2 + x_3, data = train)
+  ols2 <- lm(y~x_1 + x_2 + I(x_2^2) + x_3, data = train)
+  ols3 <- lm(y~x_1 +I(x_1^2)+ x_2 +I(x_2^2) + x_3 + I(x_3^2)+ x_4 +I(x_4^2), data = train)
+
+  
+  pred1 <- predict(ols1,test)
+  pred2 <- predict(ols2,test)   
+  pred3 <- predict(ols3,test)
+  
+  
+  bs1[i] <- mean((test$y - pred1)^2)
+  bs2[i] <- mean((test$y - pred2)^2)
+  bs3[i] <- mean((test$y - pred3)^2)
+
+}
+```
+
+
+
+## Oppgave 4 - kryssvalidering
+
+```{r}
+
+index <- 1:nrow(df)
+k <- 5
+mse <- c()
+form <- formula("y~x_1 + x_2 + I(x_2^2) + x_3")
+
+
+k_fold <- function(k, df, form){
+
+  
+  index <- 1:nrow(df)
+  mse <- c()
+  for (i in 1:k)
+  {
+    test_index <- sample(index, nrow(df)/k)
+    
+    test <- df[test_index,]
+    train <- df[-test_index, ]
+    
+    index <- index[-test_index]
+    
+    m <- lm(form, data = train)
+    
+    pred <- predict(m, test)
+    
+    mse[i] <- mean((test$y - pred)^2)
+    
+  
+  }
+  mse
+}
+
+
+k_fold(5,df,form)
+
+
+
+meanvar <- function(x) c("mean" = mean(x), "var" = var(x))
+
+
+meanvar(k_fold(5,df,form))
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
