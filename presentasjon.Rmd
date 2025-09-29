@@ -1,0 +1,83 @@
+---
+title: "Presentasjon"
+author: "Bernhard Teodor Thodesen"
+date: "Høsten 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r}
+
+library(dplyr)
+
+df <- read.csv("data/diabetes.csv")
+
+```
+
+
+# Lasso
+
+```{r}
+library(glmnet)
+
+x <- df |> select(-Outcome) |> as.matrix()
+
+lm <- cv.glmnet(x,df$Outcome, alpha = 1) # Lasso
+
+lm_best <- which(lm$lambda == lm$lambda.min)
+
+coef_matrix <- as.matrix(lm$glmnet.fit$beta[, lm_best])
+
+coef_matrix 
+```
+# Ridge
+
+
+```{r}
+
+rm <- cv.glmnet(x,df$Outcome, alpha = 0) #ridge = 0
+rm_best <- which(rm$lambda == rm$lambda.min)
+
+rm_matrix <- as.matrix(rm$glmnet.fit$beta[, rm_best])
+
+rm_matrix
+```
+
+
+```{r}
+
+library(caret)
+
+train_control <- trainControl(method = "cv", number = 10)
+
+
+mod <- train(Outcome ~.,
+             data = df,
+             method = "glmnet",
+             tune_length = 25,
+             preProcess = c("center", "scale"), 
+             trControl = train_control)
+
+mod
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
