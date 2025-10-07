@@ -1,0 +1,31 @@
+---
+title: "test"
+author: "Kandidatnumndljkamdwmer??"
+date: "2025-10-07"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Laste inn data
+
+```{r}
+
+library(haven) # Lese inn data sett
+library(dplyr) # Databehandling
+library(fixest) # Regresjon
+
+
+d <- data.frame(y = rnorm(1000), x = rnorm(1000))
+
+
+mode <- feols(y ~ x, data  = d)
+
+
+etable(mode, tex = T, se.below = T)
+
+
+
+``` 
