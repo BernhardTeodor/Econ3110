@@ -5,14 +5,19 @@ date: "Høst 2025"
 output:
   pdf_document:
     latex_engine: xelatex
-  header-includes:
-    - \usepackage{amsmath}
-    - \usepackage{booktabs}
+header-includes:
+  - \usepackage{fontspec}
+  - \usepackage{amsmath}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(tinytex.verbose = TRUE)
 ```
+
+
 
 ## Laste inn data
 ```{r}
@@ -47,7 +52,7 @@ df <- df |>
 ```
 
 ```{r}
-kable("x") # Jeg må ha med denne for at ting skal fungere.
+#kable("x") # Jeg må ha med denne for at ting skal fungere.
 ```
 
 ```{r}
@@ -428,6 +433,62 @@ panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
 panela;panelb;panelc
 
 ```
+
+
+
+
+# Oppgave 2
+
+
+```{r}
+library(GenericML) #install.packages("GenericML")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
