@@ -2,21 +2,25 @@
 title: "Gruppeoppgave"
 author: "Kandidatnummer??"
 date: "Høst 2025"
-output: pdf_document
+output:
+  pdf_document:
+    latex_engine: xelatex
+  header-includes:
+    - \usepackage{amsmath}
+    - \usepackage{booktabs}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = T)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tinytex.verbose = TRUE)
 ```
 
-
 ## Laste inn data
-
 ```{r}
-
 library(haven) # Lese inn data sett
 library(dplyr) # Databehandling
 library(fixest) # Regresjon
+library(knitr)
+library(tidytext)
 
 df <- read_dta("data/Combined_allwaves_final.dta") # Leser data 
 
@@ -39,8 +43,12 @@ df <- df |>
   mutate(miss_LF_BL= ifelse(is.na(LF_BL), 1, 0))|> 
   mutate(LF_BL_control= ifelse(is.na(LF_BL), 0, LF_BL)) |> 
   filter(endline_start_w3==1)
+
 ```
 
+```{r}
+kable("x") # Jeg må ha med denne for at ting skal fungere.
+```
 
 ```{r}
 s_train <- feols(s_train_bi_w3~ treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
@@ -67,6 +75,17 @@ not_empl <- feols(unemployed_w3~  treatment + age_med_BL_control + miss_age_PAP 
       + miss_relationship + household_size_control + miss_household_size + one_car_control
       + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
 
+leave_house <- feols(G1_2_abovemed ~ treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
+
+
+make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + 
+                         miss_age_PAP + edu_nohs_BL_control
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
 ```
 
 
@@ -117,11 +136,9 @@ fitstat_register("me",
 ```
 
 
+```{r,warning=FALSE,results='asis'}
 
-
-```{r,warning=FALSE}
-
-etable(s_train,licence,
+t1pa <- etable(s_train,licence,
        se.below=T, 
        drop = controls, 
        title =tit, 
@@ -135,14 +152,7 @@ etable(s_train,licence,
        style.tex = style.tex("qje", ),
        fitstat = ~ n + mean_c +me + pval)
 
-```
-
-
-
-
-
-```{r}
-etable(empl,not_empl ,
+t1pb <- etable(empl,not_empl ,
        se.below=T, 
        drop = controls, 
        title =tit,
@@ -155,19 +165,270 @@ etable(empl,not_empl ,
               randomization_cohort2 = ""),
        style.tex = style.tex("qje", ),
        fitstat = ~ n + mean_c +me + pval)
+
+t1pc <- etable(leave_house, make_purchase,
+       se.below=T,
+       tex = T,
+       drop = controls,
+       title =tit,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment", 
+              G1_2_abovemed = "Allowed to leave house w/o permission", 
+              G1_3_abovemed = "Allowed to make purchase w/o permission", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~ n + mean_c +me + pval)
+
+
+
+t1pa;t1pb;t1pc
+
 ```
 
 
 
+## Tabell 2
+
+
+```{r,results='asis'}
+
+
+hte_var <- c("age_med_BL_control", "edu_nohs_BL_control","LF_BL_control" )
+panelb_controls <- c("miss_age_PAP", "miss_edu_category", "married_control",
+              "widowed_control","miss_relationship", "household_size_control", "miss_household_size",
+              "one_car_control", "mult_cars_control", "miss_cars", "LF_BL_control", "single_control", "miss_LF_BL", "Constant", "randomization_cohort2")
+
+
+fitstat_register("samlet", 
+        function(x){
+          antall_koeff <- length(x$coefficients)
+          b_1 <- x$coefficients[1]
+          b_3 <- x$coefficients[antall_koeff]
+          
+          round(b_1 + b_3,3) 
+        }, 
+        "B1 + B3"
+        )
+
+
+fitstat_register("se", 
+        
+                 function(x){
+          antall_koeff <- length(x$coefficients)
+          
+          v_b_1 <- x$se[1]**2
+          v_b_3 <- x$se[antall_koeff]**2
+          
+          cov13 <- x$cov.unscaled[antall_koeff]
+          
+          se <- sqrt(v_b_1 + v_b_3 + 2*cov13)
+          
+          paste0("(",round(se,3),")")
+        }, 
+        " "
+        )
+
+fitstat_register("median_age", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   
+                   df |> 
+                     filter(treatment == 0 & age_med_BL == 0) |> 
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                 }, "Mean: control, below median age")
+
+
+fitstat_register("hs", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   
+                   df |> 
+                     filter(treatment == 0 & edu_nohs_BL == 0) |> 
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                 },
+                 "Mean: control, completed HS")
+fitstat_register("mcd", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & divorced_separated == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, divorced")
+
+fitstat_register("mcm", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & married == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, married")
+fitstat_register("mcnm", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & single == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, never married")
+
+fitstat_register("mcw", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & widowed == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, widowed")
+
+
+#### Panel A
+
+rl2a <- feols(license_w3 ~ treatment + age_med_BL  + treatment:age_med_BL 
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
+
+
+emp2a <- feols(employed_w3 ~ treatment +age_med_BL+ treatment:age_med_BL
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
+
+
+make_purchase2a <- feols(G1_3_abovemed ~ treatment +age_med_BL  + treatment:age_med_BL
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
 
 
 
-```{r}
-etable(empl,
-       se.below=T,tex = T)
 
+
+##### Panel b
+
+rl2b <- feols(license_w3 ~ treatment + edu_nohs_BL  + treatment:edu_nohs_BL
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
+
+
+emp2b <- feols(employed_w3 ~ treatment + edu_nohs_BL + treatment:edu_nohs_BL 
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
+
+
+make_purchase2b <- feols(G1_3_abovemed ~ treatment + edu_nohs_BL + treatment:edu_nohs_BL
+      + miss_age_PAP 
+      + miss_edu_category + married_control + single_control + widowed_control
+      + miss_relationship + household_size_control + miss_household_size + one_car_control
+      + miss_cars  + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr")
+      ,data = df)
+
+
+
+
+####### Panel c
+
+
+rl2c <- feols(license_w3 ~ treatment + single_control + married_control+ widowed_control
+              + treatment:married + treatment:single + treatment:widowed 
+              + miss_age_PAP + miss_edu_category + miss_relationship 
+              + household_size_control + miss_household_size + one_car_control
+              + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr")
+              ,data = df)
+
+emp2c <- feols(employed_w3 ~ treatment + single_control + married_control+ widowed_control
+              + treatment:married + treatment:single + treatment:widowed 
+              + miss_age_PAP + miss_edu_category + miss_relationship 
+              + household_size_control + miss_household_size + one_car_control
+              + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr")
+              ,data = df)
+
+make_purchase2c <- feols(G1_3_abovemed~ treatment + single_control + married_control+ widowed_control
+              + treatment:married + treatment:single + treatment:widowed 
+              + miss_age_PAP + miss_edu_category + miss_relationship 
+              + household_size_control + miss_household_size + one_car_control
+              + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr")
+              ,data = df)
+
+
+
+############
+
+
+panela <- etable(rl2a,emp2a,make_purchase2a, se.below = T,
+       tex = T, title = "Panel A",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              age_med_BL = "Above median age", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~samlet+ se+ n +  median_age);
+
+panelb <- etable(rl2b,emp2b,make_purchase2b, se.below = T,
+       tex = T, title = "panel B",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              edu_nohs_BL = "Less than HS", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~samlet+ se+ n + hs )
+
+panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
+       tex = T, title = "panel c",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              single = "never married", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~n+mcd + mcm + mcnm + mcw)
+
+
+
+panela;panelb;panelc
 
 ```
+
 
 
 

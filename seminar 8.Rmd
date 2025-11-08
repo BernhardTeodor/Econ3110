@@ -1,0 +1,137 @@
+---
+title: "Seminar 8"
+author: "Bernhard Teodor Thodesen"
+date: "2025-11-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+```
+
+
+```{r}
+
+library(stats)
+library(forecast)
+library(quantmod)
+```
+
+
+```{r}
+
+set.seed(1)
+n <- 1000
+
+e <- rnorm(n)
+
+ma2 <- e + 0.8*Lag(e) + 0.3*Lag(e, 2) 
+ma2 <- ma2 |> na.omit()
+
+ma2 <- ts(ma2)
+
+plot(ma2)
+
+```
+
+
+
+
+```{r}
+acf(ma2)
+```
+
+
+```{r}
+
+ma2_model <- Arima(ma2, order = c(0,0,2))
+summary(ma2_model)
+
+```
+
+## Oppgave 2
+
+```{r}
+
+library(lubridate)
+
+
+df <- readxl::read_excel("data/us_macro_quarterly.xlsx")
+
+
+colnames(df)[1] <- "time"
+
+
+df$time <- as.yearqtr(df$time, '%Y:%q')
+
+
+df <- xts(df[,'GDPC96'], order.by = df$time)
+
+plot(df)
+```
+
+Bli kvitt ustati
+
+
+
+```{r}
+
+df <- log(df$GDPC96)
+
+df <- diff(df$GDPC96) # prosent
+df <- na.omit(df)
+
+plot(df)
+
+```
+
+
+
+
+```{r}
+
+ar1 <- Arima(df, order = c(1,0,0))
+AIC(ar1);BIC(ar1)
+#ar1 |> summary()
+
+ar2 <- Arima(df, order = c(2,0,0))
+AIC(ar2);BIC(ar2)
+#ar2 |> summary()
+```
+
+
+
+```{r}
+
+for (i in 1:10)
+{
+  ar <- Arima(df, order = c(i,0,0))
+  print(c("AR:"= i, "AIC" = AIC(ar), "BIC" = BIC(ar)))
+}
+
+
+```
+
+
+```{r}
+ar_auto <- auto.arima(df$GDPC96, ic = "bic", 
+                      seasonal = F,
+                      stationary = T,
+                      stepwise = F)
+
+ar_auto |> summary()
+```
+## Oppgave 3
+H_0: tidserien har en unit root, den er ikke stasjoner
+H_1: titsserien er stasjoenær
+
+
+```{r}
+library(tseries)
+```
+```{r}
+adf.test(df$GDPC96) 
+```
+
+
+
