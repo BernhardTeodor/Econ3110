@@ -164,23 +164,7 @@ for (var in kovariater)
 
 
 
-
-get_GATES(x, plot = TRUE)
-
-
-
-
-plot(x, type = "CLAN", CLAN_variable = "married_control",
-     groups = c('G1','G2','G3','G4'))
-
-plot(x, type = "CLAN", CLAN_variable = "one_car_control",
-     groups = c('G1','G2','G3','G4'))
-
-
-
-get_best(x)
-
-
+get_CLAN(x, "LF_BL_control") |> plot()
 
 
 
