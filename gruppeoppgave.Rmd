@@ -435,19 +435,137 @@ panela;panelb;panelc
 ```
 
 
-
-
 # Oppgave 2
 
 
+
+
+
+
+
+
+
+
 ```{r}
-library(GenericML) #install.packages("GenericML")
+library(GenericML)
+
+
+
+
+kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
+  "miss_edu_category", "married_control", "single_control", "widowed_control",
+  "miss_relationship", "household_size_control", "miss_household_size", "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
+
+
+
+
+data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
+
+
+Z <- as.matrix(data[, kovariater]) 
+
+treat <- data$treatment |> as.numeric()
+
+Y <- data$license_w3 |> as.numeric()
+
+
+################# TUNNUG
+# Får feil med nnet
+
+learners <- c(
+  "mlr3::lrn('cv_glmnet')",
+  "mlr3::lrn('ranger')",
+  "mlr3::lrn('kknn')",
+  
+)
+
+learners <- c(
+  "mlr3::lrn('cv_glmnet')")
+
+
+diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
+
+num_splits <- 10 # Default
+
+x <- GenericML(
+  Z, treat, Y, learners,
+  num_splits = num_splits,
+  diff_CLAN = diff_clan,
+  significance_level = 0.025,
+  parallel = TRUE)
+
+x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
+```
+
+
+
+
+```{r}
+library(mlr3)
+
+
+
+ml_data <- as_task_classif(data, "license_w3")
+
+
+elnet <- lrn("classif.glmnet")
+
+
+splits <- partition(ml_data)
+
+elnet$train(ml_data, row_ids = splits$train)
+
+elnet$model
+
+prediction <- elnet$predict(ml_data, row_ids = splits$test)
+
+measure = msr("classif.acc")
+measure
+
+prediction$score(measure)
+
+prediction$confusion
 ```
 
 
 
 
 
+```{r}
+
+name <- c()
+d1 <- c()
+d2 <- c()
+d3 <- c()
+d4 <- c()
+c <- 1
+
+for (i in kovariater)
+{
+  name[c] <- i
+  svar <- get_CLAN(x, variable = i, plot = FALSE)[1]$estimate
+  d1[c] <- svar[1]
+  d2[c] <- svar[2]
+  d3[c] <- svar[3]
+  d4[c] <- svar[4]
+  c <- c +1
+}
+
+
+estimater <- data.frame(name,d1,d2,d3,d4,difference)
+
+estimater <- data.frame(name,d1,d4,difference) 
+
+estimater <- estimater |> mutate(difference = d4 -d1)
+
+estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
+
+## Runde litt av-
+
+kable(estimater)
+```
+
+  
 
 
 
@@ -480,15 +598,7 @@ library(GenericML) #install.packages("GenericML")
 
 
 
-
-
-
-
-
-
-
-
-
+Generic ML gir kausalt fordi RCT.l 
 
 
 

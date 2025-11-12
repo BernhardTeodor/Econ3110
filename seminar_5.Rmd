@@ -30,8 +30,6 @@ På y-aksen burde det stå treatment effect. Ulike grupper som hadde forskjellig
 Estimere Conditional average treatment effect(CATE), bruker ML til å predikere hvordan utfallet ville vært dersom du byttet gruppe. Basert på dine karakterisikker.
 
 
-
-
 Predikere hvordan utfallet ville vært hvis du var i den andre gruppen. 
 
 ## Oppgave 4

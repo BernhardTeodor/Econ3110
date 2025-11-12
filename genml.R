@@ -141,6 +141,9 @@ diffCLAN <- setup_diff(subtract_from = "least",
                        subtracted = c(3, 2))
 
 
+
+
+
 x <- GenericML(
   T_z, treat, T_y, learners,
   num_splits = 2,
@@ -161,6 +164,7 @@ for (var in kovariater)
   print("")
   
 }
+
 
 
 
