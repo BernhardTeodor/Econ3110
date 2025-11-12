@@ -475,8 +475,7 @@ Y <- data$license_w3 |> as.numeric()
 learners <- c(
   "mlr3::lrn('cv_glmnet')",
   "mlr3::lrn('ranger')",
-  "mlr3::lrn('kknn')",
-  
+  "mlr3::lrn('kknn')"
 )
 
 learners <- c(
@@ -496,6 +495,12 @@ x <- GenericML(
 
 x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
 ```
+
+
+
+Bruker fremgangsmetiden som MLr3 har anbefalt på netttsiden deres. Boken "Applied Machine Learning Using mlr3 in R" (Bischl et al., 2024)
+
+Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
 
 
 
@@ -529,6 +534,129 @@ prediction$confusion
 
 
 
+```{r}
+library(mlr3inferr)
+
+ml_data <- as_task_classif(data, "license_w3")
+
+cv_cross <- rsmp("cv", folds = 10)
+
+elnet <- lrn("classif.glmnet") ## Finne ut hvilke parameterere vi skal tune
+
+
+r <- resample(ml_data, elnet, cv_cross)
+
+measure = msr("classif.acc")
+r$score(measure)
+r$score(measure) |> summarise(mean(classif.acc))
+
+r$aggregate(msr("ci", msr("classif.acc")))
+
+r$predictions(predict_sets = "test")[[2]]$confusion
+
+
+
+```
+
+
+
+
+
+```{r include=FALSE}
+
+library(mlr3tuning)
+
+
+ml_data <- as_task_classif(data, "license_w3")
+
+cv<- rsmp("cv", folds = 10)
+
+#as.data.table(lrn("classif.glmnet")$param_set)[, .(id, class, lower, upper, nlevels)]  
+# For å kunne se paramater som er mulig å tuneSamtid øvre og nedre grense for denm
+
+
+elnet <- lrn("classif.glmnet",
+             alpha = to_tune(0,1),
+             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
+
+             
+#lambda = to_tune((p_dbl(lower = 1e-4, upper = 10))
+elnet
+
+
+instance <- ti(
+  task = ml_data,
+  learner = elnet,
+  resampling = cv,
+  measures = msr("classif.acc"),
+  terminator = trm("run_time", secs = 180) ## Det får ta den tiden som trengs
+)
+
+instance
+
+#type_tuner <- tnr("grid_search", resolution = 20) # 0.1, 0.2, ..., 1
+type_tuner <- tnr("random_search")
+type_tuner
+
+type_tuner$optimize(instance)
+
+instance$result_learner_param_vals
+
+as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
+
+#uten lambda 0.7217854, 	
+# med Lambda 0.7127197. Alpha = 0.1111111	, lambda = 0.0001¨
+
+### LAver range: a,l, acc: 0.3684211 0.05272632   0.7322387
+### LOgskala: a,l,acc:  0.8421053 -2.908529   0.7346438
+### RS, logskala  a,l,acc: 0.9134792 -3.798900   0.7281221                                                                  
+```
+
+jeg vet egentlig ikke om Elastic net egner seg. ettersom at vi må standarisere 
+
+```{r}
+
+
+ml_data <- as_task_classif(data, "license_w3")
+
+
+```
+
+Jeg tror nok det er denne jeg burde bruke 
+
+```{r include=FALSE}
+
+
+elnet <- lrn("classif.glmnet",
+             alpha = to_tune(0,1),
+             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
+
+ml_data <- as_task_classif(data, "license_w3")
+
+cv<- rsmp("cv", folds = 10)
+measures = msr("classif.acc")
+type_tuner <- tnr("grid_search", resolution = 20)
+
+instance = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = elnet,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 180)
+)
+
+
+
+as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
+
+alpha_tune <- instance$result$alpha
+lambda_tune <- 10^instance$result$lambda#konverter til vanlig skala fra log 10^lambda verdi
+
+```
+
+
+
 
 
 ```{r}
@@ -538,6 +666,7 @@ d1 <- c()
 d2 <- c()
 d3 <- c()
 d4 <- c()
+difference <- c()
 c <- 1
 
 for (i in kovariater)
@@ -548,11 +677,12 @@ for (i in kovariater)
   d2[c] <- svar[2]
   d3[c] <- svar[3]
   d4[c] <- svar[4]
+  difference[c] <- svar[5]
   c <- c +1
 }
 
 
-estimater <- data.frame(name,d1,d2,d3,d4,difference)
+#estimater <- data.frame(name,d1,d2,d3,d4,difference)
 
 estimater <- data.frame(name,d1,d4,difference) 
 
@@ -568,6 +698,12 @@ kable(estimater)
   
 
 
+```{r}
+instance$result_learner_param_vals
+
+as.data.table(instance$archive)[, .(alpha, lambda, classif.acc)] |> arrange(desc(classif.acc))
+
+```
 
 
 
