@@ -444,8 +444,6 @@ panela;panelb;panelc
 
 
 
-
-
 ```{r}
 library(GenericML)
 
@@ -496,8 +494,6 @@ x <- GenericML(
 
 x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
 ```
-
-
 
 
 ```{r}
@@ -599,6 +595,9 @@ kable(estimater)
 
 
 Generic ML gir kausalt fordi RCT.l 
+
+
+
 
 
 
