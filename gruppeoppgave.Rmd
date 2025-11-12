@@ -18,14 +18,22 @@ options(tinytex.verbose = TRUE)
 ```
 
 
+# Replisering av tabeller
+
+I denne delen av oppgaven skal jeg replisere tabeller fra artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025).
+
 
 ## Laste inn data
 ```{r}
 library(haven) # Lese inn data sett
 library(dplyr) # Databehandling
 library(fixest) # Regresjon
-library(knitr)
-library(tidytext)
+library(knitr) # Tabeller
+library(tidytext) # kompilering av fil
+library(GenericML) # CLAN
+library(mlr3) # ML
+library(mlr3tuning) # Tuning
+library(data.table) # Brukes med Ml3r
 
 df <- read_dta("data/Combined_allwaves_final.dta") # Leser data 
 
@@ -51,55 +59,63 @@ df <- df |>
 
 ```
 
+### Tabell 1
+Tanell 1 i artikkelen prøver å estimere behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: s_train_bi_w3(Started driver’s training),  license_w3(Received license), employed_w3(Employed), unemployed_w3(Unemployed), G1_2_abovemed(Allowed to leave house w/o permission), G1_3_abovemed(Allowed to make purchase w/o permission). Formen på regresjonene:
+
+$$
+Y_i = \beta_0 + \beta_1 Treatment + \beta \mathbf{X} + \alpha_i + \varepsilon_i
+ + $$
+
+
+
 ```{r}
-#kable("x") # Jeg må ha med denne for at ting skal fungere.
+s_train <- feols(s_train_bi_w3 ~ treatment + age_med_BL_control + miss_age_PAP 
+                 + edu_nohs_BL_control + miss_edu_category + married_control 
+                 + single_control + widowed_control+ miss_relationship + household_size_control 
+                 + miss_household_size + one_car_control+ miss_cars + LF_BL_control 
+                 + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
+
+
+licence <- feols(license_w3~ treatment + age_med_BL_control + miss_age_PAP 
+                 + edu_nohs_BL_control+ miss_edu_category + married_control 
+                 + single_control + widowed_control+ miss_relationship 
+                 + household_size_control + miss_household_size + one_car_control
+                 + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                 cluster = c("file_nbr"), data = df)
+
+
+empl <- feols(employed_w3~ treatment +age_med_BL_control + miss_age_PAP 
+              + edu_nohs_BL_control+ miss_edu_category + married_control 
+              + single_control + widowed_control+ miss_relationship + household_size_control 
+              + miss_household_size + one_car_control + miss_cars + LF_BL_control 
+              + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
+
+
+not_empl <- feols(unemployed_w3~  treatment + age_med_BL_control + miss_age_PAP 
+                  + edu_nohs_BL_control+ miss_edu_category + married_control
+                  + single_control + widowed_control+ miss_relationship 
+                  + household_size_control + miss_household_size + one_car_control
+                  + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                  cluster = c("file_nbr"), data = df)
+
+leave_house <- feols(G1_2_abovemed ~ treatment + age_med_BL_control + miss_age_PAP 
+                     + edu_nohs_BL_control+ miss_edu_category + married_control 
+                     + single_control + widowed_control+ miss_relationship 
+                     + household_size_control + miss_household_size + one_car_control
+                     + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                     cluster = c("file_nbr"), data = df)
+
+
+make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + miss_age_PAP 
+                       + edu_nohs_BL_control+ miss_edu_category + married_control 
+                       + single_control + widowed_control + miss_relationship 
+                       + household_size_control + miss_household_size + one_car_control
+                       + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                       cluster = c("file_nbr"), data = df)
 ```
 
-```{r}
-s_train <- feols(s_train_bi_w3~ treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-
-
-licence <- feols(license_w3~ treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-
-
-
-empl <- feols(employed_w3~ treatment +age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-
-
-not_empl <- feols(unemployed_w3~  treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-
-leave_house <- feols(G1_2_abovemed ~ treatment + age_med_BL_control + miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-
-
-make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + 
-                         miss_age_PAP + edu_nohs_BL_control
-      + miss_edu_category + married_control + single_control + widowed_control
-      + miss_relationship + household_size_control + miss_household_size + one_car_control
-      + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
-```
-
 
 ```{r}
-
-controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category", "married_control",
-              "widowed_control","miss_relationship", "household_size_control", "miss_household_size",
-              "one_car_control", "mult_cars_control", "miss_cars","LF_BL_control", "LF_BL_control",
-              "edu_nohs_BL_control", "single_control", "miss_LF_BL", "Constant", "randomization_cohort2")
 
 
 tit <- "Treatment Effects on Individual Outcomes and Intrahousehold Responses"
@@ -142,6 +158,12 @@ fitstat_register("me",
 
 
 ```{r,warning=FALSE,results='asis'}
+
+controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category", "married_control",
+              "widowed_control","miss_relationship", "household_size_control", "miss_household_size",
+              "one_car_control", "mult_cars_control", "miss_cars","LF_BL_control", "LF_BL_control",
+              "edu_nohs_BL_control", "single_control", "miss_LF_BL", "Constant", "randomization_cohort2")
+
 
 t1pa <- etable(s_train,licence,
        se.below=T, 
@@ -190,6 +212,10 @@ t1pc <- etable(leave_house, make_purchase,
 t1pa;t1pb;t1pc
 
 ```
+
+
+
+
 
 
 
@@ -447,9 +473,6 @@ panela;panelb;panelc
 
 
 ```{r}
-library(GenericML)
-
-
 
 
 kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
@@ -468,32 +491,6 @@ treat <- data$treatment |> as.numeric()
 
 Y <- data$license_w3 |> as.numeric()
 
-
-################# TUNNUG
-# Får feil med nnet
-
-learners <- c(
-  "mlr3::lrn('cv_glmnet')",
-  "mlr3::lrn('ranger')",
-  "mlr3::lrn('kknn')"
-)
-
-learners <- c(
-  "mlr3::lrn('cv_glmnet')")
-
-
-diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
-
-num_splits <- 10 # Default
-
-x <- GenericML(
-  Z, treat, Y, learners,
-  num_splits = num_splits,
-  diff_CLAN = diff_clan,
-  significance_level = 0.025,
-  parallel = TRUE)
-
-x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
 ```
 
 
@@ -505,112 +502,8 @@ Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Lear
 
 
 
-```{r}
-library(mlr3)
 
 
-
-ml_data <- as_task_classif(data, "license_w3")
-
-
-elnet <- lrn("classif.glmnet")
-
-
-splits <- partition(ml_data)
-
-elnet$train(ml_data, row_ids = splits$train)
-
-elnet$model
-
-prediction <- elnet$predict(ml_data, row_ids = splits$test)
-
-measure = msr("classif.acc")
-measure
-
-prediction$score(measure)
-
-prediction$confusion
-```
-
-
-
-```{r}
-library(mlr3inferr)
-
-ml_data <- as_task_classif(data, "license_w3")
-
-cv_cross <- rsmp("cv", folds = 10)
-
-elnet <- lrn("classif.glmnet") ## Finne ut hvilke parameterere vi skal tune
-
-
-r <- resample(ml_data, elnet, cv_cross)
-
-measure = msr("classif.acc")
-r$score(measure)
-r$score(measure) |> summarise(mean(classif.acc))
-
-r$aggregate(msr("ci", msr("classif.acc")))
-
-r$predictions(predict_sets = "test")[[2]]$confusion
-
-
-
-```
-
-
-
-
-
-```{r include=FALSE}
-
-library(mlr3tuning)
-
-
-ml_data <- as_task_classif(data, "license_w3")
-
-cv<- rsmp("cv", folds = 10)
-
-#as.data.table(lrn("classif.glmnet")$param_set)[, .(id, class, lower, upper, nlevels)]  
-# For å kunne se paramater som er mulig å tuneSamtid øvre og nedre grense for denm
-
-
-elnet <- lrn("classif.glmnet",
-             alpha = to_tune(0,1),
-             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
-
-             
-#lambda = to_tune((p_dbl(lower = 1e-4, upper = 10))
-elnet
-
-
-instance <- ti(
-  task = ml_data,
-  learner = elnet,
-  resampling = cv,
-  measures = msr("classif.acc"),
-  terminator = trm("run_time", secs = 180) ## Det får ta den tiden som trengs
-)
-
-instance
-
-#type_tuner <- tnr("grid_search", resolution = 20) # 0.1, 0.2, ..., 1
-type_tuner <- tnr("random_search")
-type_tuner
-
-type_tuner$optimize(instance)
-
-instance$result_learner_param_vals
-
-as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
-
-#uten lambda 0.7217854, 	
-# med Lambda 0.7127197. Alpha = 0.1111111	, lambda = 0.0001¨
-
-### LAver range: a,l, acc: 0.3684211 0.05272632   0.7322387
-### LOgskala: a,l,acc:  0.8421053 -2.908529   0.7346438
-### RS, logskala  a,l,acc: 0.9134792 -3.798900   0.7281221                                                                  
-```
 
 jeg vet egentlig ikke om Elastic net egner seg. ettersom at vi må standarisere 
 
@@ -624,14 +517,19 @@ ml_data <- as_task_classif(data, "license_w3")
 
 Jeg tror nok det er denne jeg burde bruke 
 
+
+
+### Tuner Elastic Net 
+
 ```{r include=FALSE}
+set.seed(3110)
+
+ml_data <- as_task_classif(data, "license_w3")
 
 
 elnet <- lrn("classif.glmnet",
              alpha = to_tune(0,1),
              lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
-
-ml_data <- as_task_classif(data, "license_w3")
 
 cv<- rsmp("cv", folds = 10)
 measures = msr("classif.acc")
@@ -657,7 +555,109 @@ lambda_tune <- 10^instance$result$lambda#konverter til vanlig skala fra log 10^l
 
 
 
+### Tuner Random Forest
 
+```{r include=FALSE}
+
+set.seed(3110)
+
+rf_mod <- lrn("classif.ranger",
+              mtry = to_tune(1, ncol(data) - 2), # Y og treatment
+              num.trees = to_tune(100, 1000)
+              ) 
+
+
+
+instance = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = rf_mod,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 180)
+)
+
+mtry_tune <- instance$result$mtry
+num.trees_tune <- instance$result$num.trees
+
+
+```
+
+```{r}
+as.data.table(instance$archive)[, .(num.trees, mtry ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
+```
+
+
+### Tuner neural net
+
+
+```{r include=FALSE}
+set.seed(3110)
+
+nn_learner <- lrn("classif.nnet",
+                  size = to_tune(1, 5),
+                  decay = to_tune(0, 0.1)) # kan eventuelt se på output
+
+instance_nnet = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = nn_learner,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 180)
+)
+ 
+size_tune <- instance_nnet$result$size
+decay_tune <- instance_nnet$result$decay
+```
+
+
+
+
+```{r}
+as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
+```
+
+
+
+
+```{r}
+library(GenericML)
+
+set.seed(3110)
+
+learners <- c(
+  "mlr3::lrn('cv_glmnet')",
+  "mlr3::lrn('ranger')",
+  "mlr3::lrn('kknn')"
+)
+
+elasticnet_learner <- paste("mlr3::lrn('cv_glmnet', alpha =", as.character(alpha_tune), ")")
+rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), ",num.trees =", as.character(num.trees_tune),")")
+
+
+nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), ",decay =", as.character(decay_tune),")")
+
+learners <- c(elasticnet_learner, rf_learner, nnet_learner)
+
+diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
+
+num_splits <- 10 # Default
+
+x <- GenericML(
+  Z, treat, Y, learners,
+  num_splits = num_splits,
+  diff_CLAN = diff_clan,
+  significance_level = 0.025,
+  parallel = TRUE)
+
+x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
+
+```
+
+
+
+  
 
 ```{r}
 
@@ -695,48 +695,13 @@ estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
 kable(estimater)
 ```
 
-  
-
-
-```{r}
-instance$result_learner_param_vals
-
-as.data.table(instance$archive)[, .(alpha, lambda, classif.acc)] |> arrange(desc(classif.acc))
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 Generic ML gir kausalt fordi RCT.l 
 
 
+KILDE:
+
+Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
 
 
 
