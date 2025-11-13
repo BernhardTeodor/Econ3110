@@ -1,7 +1,7 @@
 ---
-title: "Gruppeoppgave"
-author: "Kandidatnummer??"
-date: "Høst 2025"
+title: "Sjekke_oyt"
+author: "Bernhard Teodor Thodesen"
+date: "2025-11-13"
 output:
   pdf_document:
     latex_engine: xelatex
@@ -10,10 +10,10 @@ header-includes:
   - \usepackage{amsmath}
   - \usepackage{booktabs}
   - \usepackage{longtable}
+  - \usepackage{float}
 ---
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,fig.pos = '!h')
 options(tinytex.verbose = TRUE)
 ```
 
@@ -60,7 +60,7 @@ df <- df |>
 ```
 
 ### Tabell 1
-Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
+Tabell 1 i artikkelen estimerer behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: s_train_bi_w3(Started driver’s training),  license_w3(Received license), employed_w3(Employed), unemployed_w3(Unemployed), G1_2_abovemed(Allowed to leave house w/o permission), G1_3_abovemed(Allowed to make purchase w/o permission).
 
 Regresjonsmodellen har følgene form:
 
@@ -68,8 +68,6 @@ $$
 Y_i = \beta_0 + \beta_1 Treatment + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
 $$
 Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har motatt behandling. Variablen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen randomization_cohort2(Randomization strata). Til slutt benyttes "clustered standard errors" på variablen file_nbr(Houshold ID)
-
-For å gjennomføre regresjonene har benyttet meg av pakken `fixest`, fordi da har man muligheten til å fremstille regresjonsanalysen på en på pen måte.
 
 
 ```{r}
@@ -119,7 +117,7 @@ make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + miss_age
 ```
 
 
-Denne delen av koden består av å utforme tabellene.
+For å gjennomføre regresjonene har benyttet meg av pakken `fixest`, fordi da har man muligheten til å fremstille regresjonsanalysen på en på pen måte. Denne delen av koden består av å¨utforme tabellene.
 
 
 ```{r}
@@ -216,13 +214,8 @@ t1pc <- etable(leave_house, make_purchase,
        style.tex = style.tex("qje", ),
        fitstat = ~ n + mean_c +me + pval)
 
-
-
 t1pa;t1pb;t1pc
-
 ```
-
-Sammenlignet med tabell 1 i artikkelen ser vi at tallene er realtivt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
 
 
 
@@ -238,7 +231,9 @@ $$
 Nesten helt lik som for tabell 1, men blir leddet $\beta_2 Z_i + \beta_3(Treatment_i \times Z_i)$ inkluidert for å estimere hetrogenitet i behandlinseffekter. Her representerer $Z_i$ en av variablene som skal undersøkes. 
 
 
+
 ```{r}
+
 ##### Panel a
 
 rl2a <- feols(license_w3 ~ treatment + age_med_BL + treatment:age_med_BL + miss_age_PAP 
@@ -264,7 +259,9 @@ make_purchase2a <- feols(G1_3_abovemed ~ treatment +age_med_BL
                          ,data = df)
 
 
+
 ##### Panel b
+
 
 rl2b <- feols(license_w3 ~ treatment + edu_nohs_BL  + treatment:edu_nohs_BL
               + miss_age_PAP + miss_edu_category + married_control + single_control 
@@ -288,7 +285,9 @@ make_purchase2b <- feols(G1_3_abovemed ~ treatment + edu_nohs_BL
                          |randomization_cohort2, cluster = c("file_nbr")
                          ,data = df)
 
+
 ##### Panel c
+
 
 
 rl2c <- feols(license_w3 ~ treatment + single_control + married_control+ widowed_control
@@ -473,258 +472,5 @@ panela;panelb;panelc
 
 
 
-
-
-
-
-
-
-
-
-# Oppgave 2
-
-
-
-
-
-
-
-
-
-
-```{r}
-
-
-kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
-  "miss_edu_category", "married_control", "single_control", "widowed_control",
-  "miss_relationship", "household_size_control", "miss_household_size", "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
-
-
-
-
-data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
-
-
-Z <- as.matrix(data[, kovariater]) 
-
-treat <- data$treatment |> as.numeric()
-
-Y <- data$license_w3 |> as.numeric()
-
-```
-
-
-
-Bruker fremgangsmetiden som MLr3 har anbefalt på netttsiden deres. Boken "Applied Machine Learning Using mlr3 in R" (Bischl et al., 2024)
-
-Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
-
-
-
-
-
-
-
-jeg vet egentlig ikke om Elastic net egner seg. ettersom at vi må standarisere 
-
-```{r}
-
-
-ml_data <- as_task_classif(data, "license_w3")
-
-
-```
-
-Jeg tror nok det er denne jeg burde bruke 
-
-
-
-### Tuner Elastic Net 
-
-```{r include=FALSE}
-set.seed(3110)
-
-ml_data <- as_task_classif(data, "license_w3")
-
-
-elnet <- lrn("classif.glmnet",
-             alpha = to_tune(0,1),
-             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
-
-cv<- rsmp("cv", folds = 10)
-measures = msr("classif.acc")
-type_tuner <- tnr("grid_search", resolution = 20)
-
-instance = tune(
-  tuner = type_tuner,
-  task = ml_data,
-  learner = elnet,
-  resampling = cv,
-  measures = measures,
-  terminator = trm("run_time", secs = 180)
-)
-
-
-
-as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
-
-alpha_tune <- instance$result$alpha
-lambda_tune <- 10^instance$result$lambda#konverter til vanlig skala fra log 10^lambda verdi
-
-```
-
-
-
-### Tuner Random Forest
-
-```{r include=FALSE}
-
-set.seed(3110)
-
-rf_mod <- lrn("classif.ranger",
-              mtry = to_tune(1, ncol(data) - 2), # Y og treatment
-              num.trees = to_tune(100, 1000)
-              ) 
-
-
-
-instance = tune(
-  tuner = type_tuner,
-  task = ml_data,
-  learner = rf_mod,
-  resampling = cv,
-  measures = measures,
-  terminator = trm("run_time", secs = 180)
-)
-
-mtry_tune <- instance$result$mtry
-num.trees_tune <- instance$result$num.trees
-
-
-```
-
-```{r}
-as.data.table(instance$archive)[, .(num.trees, mtry ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
-```
-
-
-### Tuner neural net
-
-
-```{r include=FALSE}
-set.seed(3110)
-
-nn_learner <- lrn("classif.nnet",
-                  size = to_tune(1, 5),
-                  decay = to_tune(0, 0.1)) # kan eventuelt se på output
-
-instance_nnet = tune(
-  tuner = type_tuner,
-  task = ml_data,
-  learner = nn_learner,
-  resampling = cv,
-  measures = measures,
-  terminator = trm("run_time", secs = 180)
-)
- 
-size_tune <- instance_nnet$result$size
-decay_tune <- instance_nnet$result$decay
-```
-
-
-
-
-```{r}
-as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
-```
-
-
-
-
-```{r}
-library(GenericML)
-
-set.seed(3110)
-
-learners <- c(
-  "mlr3::lrn('cv_glmnet')",
-  "mlr3::lrn('ranger')",
-  "mlr3::lrn('kknn')"
-)
-
-elasticnet_learner <- paste("mlr3::lrn('cv_glmnet', alpha =", as.character(alpha_tune), ")")
-rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), ",num.trees =", as.character(num.trees_tune),")")
-
-
-nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), ",decay =", as.character(decay_tune),")")
-
-learners <- c(elasticnet_learner, rf_learner, nnet_learner)
-
-diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
-
-num_splits <- 10 # Default
-
-x <- GenericML(
-  Z, treat, Y, learners,
-  num_splits = num_splits,
-  diff_CLAN = diff_clan,
-  significance_level = 0.025,
-  parallel = TRUE)
-
-x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
-
-```
-
-
-
-  
-
-```{r}
-
-name <- c()
-d1 <- c()
-d2 <- c()
-d3 <- c()
-d4 <- c()
-difference <- c()
-c <- 1
-
-for (i in kovariater)
-{
-  name[c] <- i
-  svar <- get_CLAN(x, variable = i, plot = FALSE)[1]$estimate
-  d1[c] <- svar[1]
-  d2[c] <- svar[2]
-  d3[c] <- svar[3]
-  d4[c] <- svar[4]
-  difference[c] <- svar[5]
-  c <- c +1
-}
-
-
-#estimater <- data.frame(name,d1,d2,d3,d4,difference)
-
-estimater <- data.frame(name,d1,d4,difference) 
-
-estimater <- estimater |> mutate(difference = d4 -d1)
-
-estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
-
-## Runde litt av-
-
-kable(estimater)
-```
-
-
-Generic ML gir kausalt fordi RCT.l 
-
-
-KILDE:
-
-Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
-
-
-
-KILDEKODEKILDE
 
 
