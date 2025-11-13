@@ -59,7 +59,7 @@ df <- df |>
 
 ```
 
-### Tabell 1
+## Tabell 1
 Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
 
 Regresjonsmodellen har følgene form:
@@ -67,9 +67,11 @@ Regresjonsmodellen har følgene form:
 $$
 Y_i = \beta_0 + \beta_1 Treatment + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
 $$
-Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har motatt behandling. Variablen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen randomization_cohort2(Randomization strata). Til slutt benyttes "clustered standard errors" på variablen file_nbr(Houshold ID)
+Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har motatt behandling. Variablen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen `randomization_cohort2`(Randomization strata). Til slutt benyttes "clustered standard errors" på variablen `file_nbr`(Houshold ID).
 
-For å gjennomføre regresjonene har benyttet meg av pakken `fixest`, fordi da har man muligheten til å fremstille regresjonsanalysen på en på pen måte.
+For å gjennomføre regresjonene har jeg benyttet meg av pakken `fixest`. Dette gjør jeg fordi pakken har mange nyttige funksjoner som gjør at replisering av tabellene i artikkelen blir lettere. For det første er det enkelt å legge til "fixed effects" i regresjonen. Det kan man gjøre ved å legge til en pipe `|`. Ta f.eks. denne regresjonen: `feols(y ~ x_1 + x_2 | fe1, data)`, hvor `fe1` er fixed effects. For det andre kan man enkelt benytte "clustered standard errors" som de gjør i artikkelen. I tillegg kan man benytte seg av `etable()` som kan brukes til å lage fine regresjonstabeller.
+
+
 
 
 ```{r}
@@ -119,7 +121,7 @@ make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + miss_age
 ```
 
 
-Denne delen av koden består av å utforme tabellene.
+Utforming av tabeller
 
 
 ```{r}
@@ -169,7 +171,9 @@ controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category",
               "edu_nohs_BL_control", "single_control", "miss_LF_BL", "Constant", 
               "randomization_cohort2")
 
+
 setFixest_etable(drop.section = "fixef")
+
 
 t1pa <- etable(s_train,licence,
        se.below=T, 
@@ -185,6 +189,7 @@ t1pa <- etable(s_train,licence,
        style.tex = style.tex("qje", ),
        fitstat = ~ n + mean_c +me + pval)
 
+
 t1pb <- etable(empl,not_empl ,
        se.below=T, 
        drop = controls, 
@@ -198,6 +203,7 @@ t1pb <- etable(empl,not_empl ,
               randomization_cohort2 = ""),
        style.tex = style.tex("qje", ),
        fitstat = ~ n + mean_c +me + pval)
+
 
 t1pc <- etable(leave_house, make_purchase,
        se.below=T,
@@ -218,24 +224,43 @@ t1pc <- etable(leave_house, make_purchase,
 
 
 
+
 t1pa;t1pb;t1pc
 
 ```
 
-Sammenlignet med tabell 1 i artikkelen ser vi at tallene er realtivt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
+### Tabell 1 Panel A for Started driver`s training og Received license
+
+Å motta tilbud om kjøreopplæring økte sannsynligheten for å ha startet kjøreopplæring med 61,9 (se = 0.04) prosentpoeng, noe som er signifikant. Gjennomsnittet i kontrollgruppen var 0,192 (19,2%), så gitt at en person er i behandlingsgruppen så er det en forventet 81 prosent sannsynlighet for at vedkommende startet med kjøreopplæring.
+
+Behandlingen ga også en gjennomsnittlig økning på 43 (se = 0.039) prosentpoeng på om vedkommende klarte å ta førerkort. Sammenlignet med kontrollgruppen sin andel på ti prosent ser vi at effekten av å motta opplæring er om lag 4 ganger så stor som kontrollgruppa. Gitt at en person er i behandlingsgruppen er den forventede sannsynligheten for å ha tatt førerkort om lag 53 prosent for gjennomsnittpersonen.
+
+### Tabell 1 Panel B for Employed og Unemployed
+
+I denne tabellen ser vi på hvordan behandlingen påvirker arbiedsstatus. Behandlingen økte sannsynligheten for å være i arbeid med 8.5 prosentpoeng sllik at behandlingsgruppa har en forventet sannsynlighet på 29,5 prosent for å være i arbeid. Resultat er akkurat signifikant under fem prosent med en p-verdi på 0,049.
+
+Samtidig som at behandlingen øker sannsynligheten for å bli ansatt, synker sannsynligheten for å være uten arbeid ved behandling. Ved å være i behandlingsgruppa reduserte dette sannsynligheten for å være arbeidsledig med 10,5 prosentpoeng, estimatet er signifikant på 5 prosent med tilhørende p-verdi på 0,032. Dette gir at behandlingsgruppa har en forventet sannsynlighet på 0,464(46,4%) for å være arbeidsledig.
 
 
+### Tabell 1 Panel C for Allowed to leave house w/o permission og Allowed to make purchase w/o permission
+
+I denne tabellen viser man hvordan behandlingen påvirker kvinnes selvstendighet i hverdagen. Ved behandling økte sannsynligheten for at kvinner forlot huset uten tillatelse med 6,2 prosentpoeng. Den forventede sannsynligheten for at kvinner gjør det er 0,406(40,6 %). Effekten derimot er ikke signifikant med en tilhørende p-verdi på 0,184.
+
+Samtidig reduserer behandlingen tilbøyeligheten for å foreta kjøp uten tillatelse med 9 prosentpoeng, noe som gir en forventet sannsynlighet på 0,394(39.4 %). Dette resultatet er ikke signifikant på fem prosent med en p-verdi på 0,059, men kan tyde på at det har en viss innvirkning.
+
+
+Sammenlignet med tabell 1 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
 
 ## Tabell 2
 
-Tabell 2 viser hetrogeniteter i behandlingseffeketer. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(KILDE). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfalls variabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
+Tabell 2 viser hetrogeniteter i behandlingseffeketer. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(KILDE). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
 Regresjonene har følgende form:
 
 
 $$
 Y_i = \beta_0 + \beta_1 Treatment_i + \beta_2 Z_i + \beta_3(Treatment_i \times Z_i) + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
 $$
-Nesten helt lik som for tabell 1, men blir leddet $\beta_2 Z_i + \beta_3(Treatment_i \times Z_i)$ inkluidert for å estimere hetrogenitet i behandlinseffekter. Her representerer $Z_i$ en av variablene som skal undersøkes. 
+Regresjonen er nesten helt lik som for tabell 1, men leddet $\beta_2 Z_i + \beta_3(Treatment_i \times Z_i)$ blir inkludert for å estimere hetrogenitet i behandlinseffekter. Her representerer $Z_i$ en av variablene som skal undersøkes. 
 
 
 ```{r}
@@ -316,7 +341,7 @@ make_purchase2c <- feols(G1_3_abovemed~ treatment + single_control + married_con
 ```
 
 
-Lage tabeller. 
+Utforming av tabeller. 
 
 ```{r,results='asis'}
 
@@ -438,7 +463,7 @@ panela <- etable(rl2a,emp2a,make_purchase2a, se.below = T,
        fitstat = ~samlet+ se+ n +  median_age);
 
 panelb <- etable(rl2b,emp2b,make_purchase2b, se.below = T,
-       tex = T, title = "panel B",
+       tex = T, title = "Panel B",
        drop = panelb_controls,
        digits = "r3",digits.stats = "r3",
        signif.code = NA,
@@ -452,7 +477,7 @@ panelb <- etable(rl2b,emp2b,make_purchase2b, se.below = T,
        fitstat = ~samlet+ se+ n + hs )
 
 panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
-       tex = T, title = "panel c",
+       tex = T, title = "Panel C",
        drop = panelb_controls,
        digits = "r3",digits.stats = "r3",
        signif.code = NA,
