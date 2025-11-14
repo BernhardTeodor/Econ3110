@@ -59,7 +59,7 @@ df <- df |>
 
 ```
 
-## Tabell 1
+### Tabell 1
 Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
 
 Regresjonsmodellen har følgene form:
@@ -67,7 +67,7 @@ Regresjonsmodellen har følgene form:
 $$
 Y_i = \beta_0 + \beta_1 Treatment + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
 $$
-Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har motatt behandling. Variablen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen `randomization_cohort2`(Randomization strata). Til slutt benyttes "clustered standard errors" på variablen `file_nbr`(Houshold ID).
+Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har mottatt behandling. Variabelen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen `randomization_cohort2`(Randomization strata). Til slutt benyttes "clustered standard errors" på variabelen `file_nbr`(Houshold ID).
 
 For å gjennomføre regresjonene har jeg benyttet meg av pakken `fixest`. Dette gjør jeg fordi pakken har mange nyttige funksjoner som gjør at replisering av tabellene i artikkelen blir lettere. For det første er det enkelt å legge til "fixed effects" i regresjonen. Det kan man gjøre ved å legge til en pipe `|`. Ta f.eks. denne regresjonen: `feols(y ~ x_1 + x_2 | fe1, data)`, hvor `fe1` er fixed effects. For det andre kan man enkelt benytte "clustered standard errors" som de gjør i artikkelen. I tillegg kan man benytte seg av `etable()` som kan brukes til å lage fine regresjonstabeller.
 
@@ -121,10 +121,10 @@ make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + miss_age
 ```
 
 
-Utforming av tabeller
+Utforming av tabeller, her benytter jeg meg av funksjonen `fitstat_register()` som gjør det mulig å utforme egne funksjoner som man kan bruke når man lager regresjonstabellene. 
 
 
-```{r}
+```{r,warning=FALSE,results='asis'}
 
 
 fitstat_register("control_mean", function(x) mean(x), "Control mean")
@@ -145,7 +145,6 @@ fitstat_register("mean_c",
                  "Control mean"
 )
 
-
 fitstat_register("me", 
 
                  function(x){
@@ -159,11 +158,6 @@ fitstat_register("me",
                  "b/Control mean"
 )
 
-```
-
-
-```{r,warning=FALSE,results='asis'}
-
 controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category", 
               "married_control", "widowed_control","miss_relationship", 
               "household_size_control", "miss_household_size","one_car_control", 
@@ -171,9 +165,7 @@ controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category",
               "edu_nohs_BL_control", "single_control", "miss_LF_BL", "Constant", 
               "randomization_cohort2")
 
-
 setFixest_etable(drop.section = "fixef")
-
 
 t1pa <- etable(s_train,licence,
        se.below=T, 
@@ -223,37 +215,68 @@ t1pc <- etable(leave_house, make_purchase,
        fitstat = ~ n + mean_c +me + pval)
 
 
-
-
-t1pa;t1pb;t1pc
-
 ```
 
-### Tabell 1 Panel A for Started driver`s training og Received license
+```{=latex}
+\vspace{10cm}
+```
+
+```{r echo=FALSE, results='asis'}
+t1pa
+```
+
+### *Tabell 1 Panel A for Started driver`s training og Received license*
 
 Å motta tilbud om kjøreopplæring økte sannsynligheten for å ha startet kjøreopplæring med 61,9 (se = 0.04) prosentpoeng, noe som er signifikant. Gjennomsnittet i kontrollgruppen var 0,192 (19,2%), så gitt at en person er i behandlingsgruppen så er det en forventet 81 prosent sannsynlighet for at vedkommende startet med kjøreopplæring.
 
 Behandlingen ga også en gjennomsnittlig økning på 43 (se = 0.039) prosentpoeng på om vedkommende klarte å ta førerkort. Sammenlignet med kontrollgruppen sin andel på ti prosent ser vi at effekten av å motta opplæring er om lag 4 ganger så stor som kontrollgruppa. Gitt at en person er i behandlingsgruppen er den forventede sannsynligheten for å ha tatt førerkort om lag 53 prosent for gjennomsnittpersonen.
 
-### Tabell 1 Panel B for Employed og Unemployed
+```{=latex}
+\vspace{1cm}
+```
+
+```{r echo=FALSE, results='asis'}
+t1pb
+```
+
+
+### *Tabell 1 Panel B for Employed og Unemployed*
 
 I denne tabellen ser vi på hvordan behandlingen påvirker arbiedsstatus. Behandlingen økte sannsynligheten for å være i arbeid med 8.5 prosentpoeng sllik at behandlingsgruppa har en forventet sannsynlighet på 29,5 prosent for å være i arbeid. Resultat er akkurat signifikant under fem prosent med en p-verdi på 0,049.
 
 Samtidig som at behandlingen øker sannsynligheten for å bli ansatt, synker sannsynligheten for å være uten arbeid ved behandling. Ved å være i behandlingsgruppa reduserte dette sannsynligheten for å være arbeidsledig med 10,5 prosentpoeng, estimatet er signifikant på 5 prosent med tilhørende p-verdi på 0,032. Dette gir at behandlingsgruppa har en forventet sannsynlighet på 0,464(46,4%) for å være arbeidsledig.
 
+```{=latex}
+\vspace{1.5cm}
+```
 
-### Tabell 1 Panel C for Allowed to leave house w/o permission og Allowed to make purchase w/o permission
+```{r echo=FALSE, results='asis'}
+t1pc
+```
+
+
+### *Tabell 1 Panel C for Allowed to leave house w/o permission og Allowed to make purchase w/o permission*
 
 I denne tabellen viser man hvordan behandlingen påvirker kvinnes selvstendighet i hverdagen. Ved behandling økte sannsynligheten for at kvinner forlot huset uten tillatelse med 6,2 prosentpoeng. Den forventede sannsynligheten for at kvinner gjør det er 0,406(40,6 %). Effekten derimot er ikke signifikant med en tilhørende p-verdi på 0,184.
 
 Samtidig reduserer behandlingen tilbøyeligheten for å foreta kjøp uten tillatelse med 9 prosentpoeng, noe som gir en forventet sannsynlighet på 0,394(39.4 %). Dette resultatet er ikke signifikant på fem prosent med en p-verdi på 0,059, men kan tyde på at det har en viss innvirkning.
+```{=latex}
+\vspace{1.5cm}
+```
+
 
 
 Sammenlignet med tabell 1 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
 
+
+
+```{=latex}
+\vspace{3cm}
+```
+
 ## Tabell 2
 
-Tabell 2 viser hetrogeniteter i behandlingseffeketer. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(KILDE). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
+Tabell 2 viser hetrogeniteter i behandlingseffekter. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(KILDE). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
 Regresjonene har følgende form:
 
 
@@ -261,6 +284,7 @@ $$
 Y_i = \beta_0 + \beta_1 Treatment_i + \beta_2 Z_i + \beta_3(Treatment_i \times Z_i) + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
 $$
 Regresjonen er nesten helt lik som for tabell 1, men leddet $\beta_2 Z_i + \beta_3(Treatment_i \times Z_i)$ blir inkludert for å estimere hetrogenitet i behandlinseffekter. Her representerer $Z_i$ en av variablene som skal undersøkes. 
+
 
 
 ```{r}
@@ -492,39 +516,63 @@ panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
 
 
 
-panela;panelb;panelc
 
+```
+```{r echo=FALSE, results='asis'}
+panela
+```
+### *Panel A*
+
+Tabellen viser hvordan behandlingseffekten varier med alder på tre ulike utfallsvariabler. Den første variabelen `Received license` ser vi at for kvinner under median alder øker sannsynligheten for å få førerkort med 52,6 prosentpoeng. Vi ser gjennom  interaction leddet at kvinner over median alder har en lavere behandlingseffekt med 18,9 prosentpoeng, men den totale behandlingseffekten for kvinner over median alder er likevel 33,8 prosentpoeng høyere enn for kvinner uten behandling. Det er likevel litt interessant å se at kvinner i kontrollgruppen som bestod av kvinner  under median alder, var det kun  ni prosent som fikk førerkort. Dette illustrere at behandlingen hadde spesielt stor effekt for deltagere under median alder. 
+
+For den andre utfallsvariabelen `Employed`ser vi en oppgang på 13,9 prosentpoeng ved behandling for kvinner som er under median alder. På den andre siden ser vi at eldre kvinner har en mye mindre behandlingseffekt på kun 3,4 prosentpoeng høyere enn kvinner som ikke får behandling. Resultatet peker mot at behandlingen har klart sterkere effekter på yngre kvinner. Til slutt har vi utfallsvariabelen `Allowed to make purchase w/o permission`. I første omgang ser vi en marginal økning på 3,8 prosentpoeng for kvinner under median alder. På den andre siden ser vi en sterk nedgang for eldre kvinner på 20,8 prosentpoeng. Det ser ut til at behandlingen har motsatt effekt for eldre kvinner enn det som kanskje var tiltenkt.
+
+
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+panelb
 ```
 
 
+### *Panel B*
+I denne tabellen ser vi hvordan utdanningsnivå påvirker behandlingseffekten, særlig blant kvinner som har fullført videregående eller ikke. For variabelen `Received license` ser vi at behandlingen fører til en 50,7 prosentpoengs økning for kvinner som har fullført videregående. Interaksjonsleddet forteller oss derimot at kvinner som ikke hadde fullført videregående skole, så var effekten 23 prosentpoeng lavere. Dette fører til en total økning på 27,7 prosentpoeng for kvinner i behandlingsgruppen uten videregående skole. Sammenlignet med kontrollgruppen, hvor andelen er 12,9 prosent, ser vi at behandlingen hadde positiv virkning for alle i behandlingsgruppen, men særlig for kvinner som har gjennomført videregående skole.  
+
+For `Employed` ser vi at behanlingseffekten er noe større for kvinner uten videregående skole på 10,7 prosentpoeng mot 7,8 prosentpoeng. Koeffisientene er imidlertid ikke statistisk signifikante og vi kan derfor ikke fastslå at forskjellen mellom gruppene er forskjellig null. Variabelen `Allowed to make purchase w/o permission` har negativ trend , men ingen av de individuelle koeffisientene for behandling eller utdanning er signifikante. Den totale effekten for behandlingsgruppen er derimot signifikant og viser en reduksjon på 20,9 prosentpoeng. Dette tyder på at behandlingen samlet sett reduserte sannsynligheten for at kvinner får lov til å gjøre innkjøp uten tillatelse,
+
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+panelc
+```
+
+### *Panel C*
+
+I denne tabellen ser vi på hvordan sivilstatus til kvinner påvirker utfallsvariablene. For `Received license` ser vi at behandlingen for kvinner i referansegruppen(skilt), gir en økning med 43,3 prosentpoeng. Koeffisientene for interaksjon med sivilstatus viser varierende effekter, men ingen av dem er signifikante. Dette betyr at vi ikke kan konkludere med at behandlingen faktisk har en forskjell på tvers av sivilstatus. Tilsvarende for `Employed ` er ingen av resultatene signifikante, som betyr at vi ikke kan konkludere med at behandlingen påvirker sysselsettingen ulikt for de forskjellige gruppene. Til slutt har vi `Allowed to make purchase w/o permission`, her har behandlingen en negativ effekt på kvinner som er skilt, med 22,1 prosent poeng. For kvinner som aldri har vært gift økte tilbøyeligheten med 34,4 prosent for å gjøre kjøp uten tillatelse. For gruppene `Married` og `widowed` er resultatene ikke signifikante.  
+```{=latex}
+\vspace{1.5cm}
+```
+
+
+Igjen, sammenlignet med tabell 3 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning og vi får kun avvik hvor det dreier seg om hundredeler. Resultatene samsvarer godt med det man finner i artikkelen (Abou Daher et al, 2025, s.3265)
 
 
 
 
-
-
-
-
-
-# Oppgave 2
-
-
-
-
-
-
-
-
+# CLAN-analyse
 
 
 ```{r}
 
-
 kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
   "miss_edu_category", "married_control", "single_control", "widowed_control",
   "miss_relationship", "household_size_control", "miss_household_size", "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
-
-
 
 
 data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
@@ -535,6 +583,8 @@ Z <- as.matrix(data[, kovariater])
 treat <- data$treatment |> as.numeric()
 
 Y <- data$license_w3 |> as.numeric()
+
+
 
 ```
 
@@ -586,15 +636,14 @@ instance = tune(
   learner = elnet,
   resampling = cv,
   measures = measures,
-  terminator = trm("run_time", secs = 180)
+  terminator = trm("run_time", secs = 180) # Stopper etter 3min om ikke ferdig.
 )
 
-
+alpha_tune <- instance$result$alpha
+lambda_tune <- 10^instance$result$lambda #konverter til vanlig skala fra log 10^lambda verdi
 
 as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
 
-alpha_tune <- instance$result$alpha
-lambda_tune <- 10^instance$result$lambda#konverter til vanlig skala fra log 10^lambda verdi
 
 ```
 
@@ -672,7 +721,7 @@ library(GenericML)
 set.seed(3110)
 
 learners <- c(
-  "mlr3::lrn('cv_glmnet')",
+  "mlr3::lrn('glmnet')",
   "mlr3::lrn('ranger')",
   "mlr3::lrn('kknn')"
 )
@@ -747,6 +796,8 @@ Generic ML gir kausalt fordi RCT.l
 KILDE:
 
 Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
+
+Chernozhukov, V., Demirer, M., Duflo, E., & Fernández-Val, I. (2018). Generic machine learning inference on heterogeneous treatment effects in randomized experiments, with an application to immunization in India. *National Bureau of Economic Research*. https://doi.org/10.3386/w24678
 
 
 

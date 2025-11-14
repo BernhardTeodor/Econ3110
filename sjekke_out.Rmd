@@ -261,6 +261,10 @@ t1pc
 I denne tabellen viser man hvordan behandlingen påvirker kvinnes selvstendighet i hverdagen. Ved behandling økte sannsynligheten for at kvinner forlot huset uten tillatelse med 6,2 prosentpoeng. Den forventede sannsynligheten for at kvinner gjør det er 0,406(40,6 %). Effekten derimot er ikke signifikant med en tilhørende p-verdi på 0,184.
 
 Samtidig reduserer behandlingen tilbøyeligheten for å foreta kjøp uten tillatelse med 9 prosentpoeng, noe som gir en forventet sannsynlighet på 0,394(39.4 %). Dette resultatet er ikke signifikant på fem prosent med en p-verdi på 0,059, men kan tyde på at det har en viss innvirkning.
+```{=latex}
+\vspace{1.5cm}
+```
+
 
 
 Sammenlignet med tabell 1 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
@@ -513,7 +517,6 @@ panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
 
 
 
-#panela;panelb;panelc
 
 ```
 ```{r echo=FALSE, results='asis'}
@@ -537,7 +540,271 @@ panelb
 
 
 ### *Panel B*
-I denne tabellen ser vi hvordan utdanningsnivå påvirker behandlingseffekten, særlig blant kvinner som har fullført videregående eller ikke. For variabelen `Received license` ser vi at behandlingen fører til en 50,7 prosentpoengs økning for kvinner som har fullført videregående. Interaksjonsleddet forteller oss derimot at kvinner som ikke hadde fullført videregående skole, så var effekten 23 prosentpoeng lavere. Dette fører til en total økning på 27,7 prosentpoeng for kvinner i behandlingsgruppen uten videregående skole. Sammenlignet med kontrollgruppen, hvor andelen er 12,9 prosent, ser vi at behandlingen hadde positiv virkning for alle i behandlingsgruppen, men særlig for kvinner som har gjennomført videregående skole.  For `Employed` ser vi at behanlingseffekten er noe større for kvinner uten videregående skole på 10,7 prosentpoeng mot 7,8 prosentpoeng. Koeffisientene er imidlertid ikke statistisk signifikante og vi kan derfor ikke fastslå at forskjellen mellom gruppene er forskjellig null.  
+I denne tabellen ser vi hvordan utdanningsnivå påvirker behandlingseffekten, særlig blant kvinner som har fullført videregående eller ikke. For variabelen `Received license` ser vi at behandlingen fører til en 50,7 prosentpoengs økning for kvinner som har fullført videregående. Interaksjonsleddet forteller oss derimot at kvinner som ikke hadde fullført videregående skole, så var effekten 23 prosentpoeng lavere. Dette fører til en total økning på 27,7 prosentpoeng for kvinner i behandlingsgruppen uten videregående skole. Sammenlignet med kontrollgruppen, hvor andelen er 12,9 prosent, ser vi at behandlingen hadde positiv virkning for alle i behandlingsgruppen, men særlig for kvinner som har gjennomført videregående skole.  
+
+For `Employed` ser vi at behanlingseffekten er noe større for kvinner uten videregående skole på 10,7 prosentpoeng mot 7,8 prosentpoeng. Koeffisientene er imidlertid ikke statistisk signifikante og vi kan derfor ikke fastslå at forskjellen mellom gruppene er forskjellig null. Variabelen `Allowed to make purchase w/o permission` har negativ trend , men ingen av de individuelle koeffisientene for behandling eller utdanning er signifikante. Den totale effekten for behandlingsgruppen er derimot signifikant og viser en reduksjon på 20,9 prosentpoeng. Dette tyder på at behandlingen samlet sett reduserte sannsynligheten for at kvinner får lov til å gjøre innkjøp uten tillatelse,
+
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+panelc
+```
+
+### *Panel C*
+
+I denne tabellen ser vi på hvordan sivilstatus til kvinner påvirker utfallsvariablene. For `Received license` ser vi at behandlingen for kvinner i referansegruppen(skilt), gir en økning med 43,3 prosentpoeng. Koeffisientene for interaksjon med sivilstatus viser varierende effekter, men ingen av dem er signifikante. Dette betyr at vi ikke kan konkludere med at behandlingen faktisk har en forskjell på tvers av sivilstatus. Tilsvarende for `Employed ` er ingen av resultatene signifikante, som betyr at vi ikke kan konkludere med at behandlingen påvirker sysselsettingen ulikt for de forskjellige gruppene. Til slutt har vi `Allowed to make purchase w/o permission`, her har behandlingen en negativ effekt på kvinner som er skilt, med 22,1 prosent poeng. For kvinner som aldri har vært gift økte tilbøyeligheten med 34,4 prosent for å gjøre kjøp uten tillatelse. For gruppene `Married` og `widowed` er resultatene ikke signifikante.  
+
+```{=latex}
+\vspace{1cm}
+```
+
+Igjen, sammenlignet med tabell 3 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning og vi får kun avvik hvor det dreier seg om hundredeler. Resultatene samsvarer godt med det man finner i artikkelen (Abou Daher et al, 2025, s.3265)
+
+
+# CLAN-analyse
+
+I denne delen av oppgaven gjennomføre jeg en CLAN-analyse på utfallsvariabelen `Received license`(`license_w3`). Analysen bygger på metodikken introdusert av Chernozhukov et al. (2018) og går ut på å bruke maskinlæring til å estimere egenskaper ved CATE-funksjonen(conditional average treatment effect), og bruker disse til å estimere karakteristikaenetil de minst og mest påvirkede gruppene. 
+
+For å gjenomføre analysen benytter jeg pakken GenericML. I rammeverket til GenericML kan man selv velge hvilke maskinlæringsmodeller som skal brukes, men pakken tilbyr ikke egen tuning av modellene. Derfor bruker jeg mlr3 til å tune og trene modellene før de brukes i CLAN-analysen. Bruken av mlr3 pakken til å tune er basert på anbefalingene til Bisch et al. (2024). 
+
+
+```{r}
+
+#Databehandling
+
+set.seed(3110)
+
+kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
+  "miss_edu_category", "married_control", "single_control", "widowed_control",
+  "miss_relationship", "household_size_control", "miss_household_size", 
+  "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
+
+
+data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
+
+Z <- as.matrix(data[, kovariater]) 
+
+treat <- data$treatment |> as.numeric()
+
+Y <- data$license_w3 |> as.numeric()
+
+ml_data <- as_task_classif(data, "license_w3") # mlr3 krever at dataen er en 'task'
+# "license_w3" er den variablen vi ønsker å predikere.
+
+
+cv<- rsmp("cv", folds = 10) # Bruker kryssvalidering
+measures = msr("classif.acc") # Accuracy som måleenhet
+type_tuner <- tnr("grid_search", resolution = 20) # Bruker grid search under tuning.
+
+```
+
+### Tuner Elastic Net 
+
+```{r, results='hide'}
+set.seed(3110)
+
+elnet <- lrn("classif.glmnet",  # Tuner alpha og lambda
+             alpha = to_tune(0,1),
+             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
+
+instance_elasticnet = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = elnet,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300) # Stopper etter 3min om ikke ferdig.
+)
+
+alpha_tune <- instance_elasticnet$result$alpha
+lambda_tune <- 10^instance_elasticnet$result$lambda #konverter til vanlig skala fra log 10^lambda verdi
+
+```
+
+```{r}
+as.data.table(instance_elasticnet$archive)[, .(alpha, lambda ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable()
+```
+Her er en oversikt over de best parameterkombinasjonene fra tuningen. `classif.acc` er relativ for mange ulike kombinasjoner. Det er spesielt interessant å se at en ren lasso modell (alpha = 1) var en av modellene som presterte best.  
+
+
+### Tuner Random Forest
+
+```{r, results='hide'}
+
+set.seed(3110) 
+
+rf_mod <- lrn("classif.ranger",
+              mtry = to_tune(1, ncol(data) - 2), # Minus Y og treatment
+              num.trees = to_tune(100, 1000)
+              ) 
+
+instance_rf = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = rf_mod,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300)
+)
+
+mtry_tune <- instance_rf$result$mtry
+num.trees_tune <- instance_rf$result$num.trees
+```
+
+```{r}
+as.data.table(instance_rf$archive)[, .(mtry, num.trees ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable()
+```
+
+For random forest modellen ser vi mtry for de beste modellene ligger på 3 mens antall trær varier stort uten å miste noe særlig prediksjonsnøyaktighet.
+
+### Tuner neural net
+
+```{r, results='hide'}
+
+set.seed(3110)
+
+nn_learner <- lrn("classif.nnet",
+                  size = to_tune(1, 5),
+                  decay = to_tune(0, 0.1)) 
+
+instance_nnet = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = nn_learner,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300)
+)
+ 
+size_tune <- instance_nnet$result$size
+decay_tune <- instance_nnet$result$decay
+
+```
+
+```{r}
+as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable()
+```
+
+
+Tuningen viser at den beste modellen hadde 4 noder i hvert ledd, men likevel så ser vi at kompleksiteten av modellen ikke hadde særlig stor effekt på prediksjonsnøyaktighet.
+
+
+
+
+### CLAN
+
+```{r, results='hide', message= F}
+set.seed(3110)
+
+
+elasticnet_learner <- paste("mlr3::lrn('glmnet', alpha =", as.character(alpha_tune),
+                            "," ,"lambda = ",as.character(lambda_tune),")" )
+
+
+rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), 
+                    ",num.trees =", as.character(num.trees_tune),")")
+
+
+nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), 
+                      ",decay =", as.character(decay_tune),")")
+
+
+# Har ikke med "classif." som prefix, fordi dokumentasjon til pakken sier man skal ignorere det.
+
+learners <- c(elasticnet_learner, rf_learner, nnet_learner)
+
+
+diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
+
+num_splits <- 10 # Default
+
+x <- GenericML(
+  Z, treat, Y, learners,
+  num_splits = num_splits,
+  diff_CLAN = diff_clan,
+  significance_level = 0.025
+  )
+
+```
+
+```{r}
+paste("Modell best egnet for CLAN:", x$best$CLAN)
+```
+Henter ut verdier fra modellen
+
+```{r}
+
+name <- c()
+d1 <- c()
+d4 <- c()
+c <- 1
+
+for (i in kovariater)
+{
+  name[c] <- i
+  svar <- get_CLAN(x, variable = i, plot = FALSE)[1]$estimate
+  d1[c] <- svar[1] # Laveste behandlingseffekt
+  d4[c] <- svar[4] # Høyest behandlingseffekt
+  c <- c +1
+}
+
+estimater <- data.frame(name,d1,d4) 
+
+estimater <- estimater |> mutate(difference = d4 -d1)
+
+estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
+
+
+kable(estimater)
+```
+
+Behandlingen i Abou Daher et al. (2025) er randomisert og vi kan derfor i følge Chernozhukov et al (2018) tolke estimatene fra CLAN-analysen kausalt. Tabellen består av fire kolonner. Den første viser alle kovariatene i analysen. De to neste `d1` og `d4` rep
+
+EENDRE NAV I TABELLEN
+
+
+Kilder:
+
+Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
+
+Chernozhukov, V., Demirer, M., Duflo, E., & Fernández-Val, I. (2018). Generic machine learning inference on heterogeneous treatment effects in randomized experiments, with an application to immunization in India. *National Bureau of Economic Research*. https://doi.org/10.3386/w24678
+
+
+Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

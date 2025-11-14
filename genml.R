@@ -126,9 +126,6 @@ learners <- c(
   "mlr3::lrn('kknn')"
 )
 
-#learners <- c("lasso", "mlr3::lrn('ranger', num.trees = 10)")
-
-
 
 quantilecutoffs <- c(0.25, 0.5, 0.75)
 
@@ -153,6 +150,10 @@ x <- GenericML(
   significance_level = 0.025,
   parallel = FALSE
 )
+
+
+
+
 
 
 for (var in kovariater)
