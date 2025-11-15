@@ -1,6 +1,6 @@
 ---
 title: "Gruppeoppgave"
-author: "Kandidatnummer??"
+author: "Kandidatnummer: "
 date: "Høst 2025"
 output:
   pdf_document:
@@ -17,18 +17,22 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 options(tinytex.verbose = TRUE)
 ```
 
+# Introduksjon
+
+I denne oppgaven skal jeg undersøke hetrogeniteter i behandlingseffekter med utgangspunkt i artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025). Oppgaven består av to hoveddeler. I den første skal jeg replisere tabeller fra artikkelen for å sjekke at estimatene er pålitelige. I den andre delen gjennomfører jeg en CLAN-analyse for å undersøke om behandlingseffektene varierer på tvers av kvinner når det gjelder å ta førerkort.
 
 # Replisering av tabeller
 
 I denne delen av oppgaven skal jeg replisere tabeller fra artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025).
 
 
-## Laste inn data
+### Laste inn data
 ```{r}
 library(haven) # Lese inn data sett
 library(dplyr) # Databehandling
 library(fixest) # Regresjon
 library(knitr) # Tabeller
+library(kableExtra) #Tabeller
 library(tidytext) # kompilering av fil
 library(GenericML) # CLAN
 library(mlr3) # ML
@@ -60,7 +64,7 @@ df <- df |>
 ```
 
 ### Tabell 1
-Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden. Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
+Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden(Field & Vyborny, 2025). Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
 
 Regresjonsmodellen har følgene form:
 
@@ -217,9 +221,6 @@ t1pc <- etable(leave_house, make_purchase,
 
 ```
 
-```{=latex}
-\vspace{10cm}
-```
 
 ```{r echo=FALSE, results='asis'}
 t1pa
@@ -231,9 +232,6 @@ t1pa
 
 Behandlingen ga også en gjennomsnittlig økning på 43 (se = 0.039) prosentpoeng på om vedkommende klarte å ta førerkort. Sammenlignet med kontrollgruppen sin andel på ti prosent ser vi at effekten av å motta opplæring er om lag 4 ganger så stor som kontrollgruppa. Gitt at en person er i behandlingsgruppen er den forventede sannsynligheten for å ha tatt førerkort om lag 53 prosent for gjennomsnittpersonen.
 
-```{=latex}
-\vspace{1cm}
-```
 
 ```{r echo=FALSE, results='asis'}
 t1pb
@@ -276,7 +274,7 @@ Sammenlignet med tabell 1 i artikkelen ser vi at tallene er relativt like. Alle 
 
 ## Tabell 2
 
-Tabell 2 viser hetrogeniteter i behandlingseffekter. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(KILDE). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
+Tabell 2 viser hetrogeniteter i behandlingseffekter. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(Field & Vyborny, 2025). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
 Regresjonene har følgende form:
 
 
@@ -555,28 +553,35 @@ panelc
 ### *Panel C*
 
 I denne tabellen ser vi på hvordan sivilstatus til kvinner påvirker utfallsvariablene. For `Received license` ser vi at behandlingen for kvinner i referansegruppen(skilt), gir en økning med 43,3 prosentpoeng. Koeffisientene for interaksjon med sivilstatus viser varierende effekter, men ingen av dem er signifikante. Dette betyr at vi ikke kan konkludere med at behandlingen faktisk har en forskjell på tvers av sivilstatus. Tilsvarende for `Employed ` er ingen av resultatene signifikante, som betyr at vi ikke kan konkludere med at behandlingen påvirker sysselsettingen ulikt for de forskjellige gruppene. Til slutt har vi `Allowed to make purchase w/o permission`, her har behandlingen en negativ effekt på kvinner som er skilt, med 22,1 prosent poeng. For kvinner som aldri har vært gift økte tilbøyeligheten med 34,4 prosent for å gjøre kjøp uten tillatelse. For gruppene `Married` og `widowed` er resultatene ikke signifikante.  
-```{=latex}
-\vspace{1.5cm}
-```
 
+```{=latex}
+\vspace{1cm}
+```
 
 Igjen, sammenlignet med tabell 3 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning og vi får kun avvik hvor det dreier seg om hundredeler. Resultatene samsvarer godt med det man finner i artikkelen (Abou Daher et al, 2025, s.3265)
 
 
 
-
 # CLAN-analyse
+
+I denne delen av oppgaven gjennomføre jeg en CLAN-analyse på utfallsvariabelen `Received license`(`license_w3`). Analysen bygger på metodikken introdusert av Chernozhukov et al. (2018) og går ut på å bruke maskinlæring til å estimere egenskaper ved CATE-funksjonen(conditional average treatment effect), og bruker disse til å estimere karakteristikaenetil de minst og mest påvirkede gruppene. 
+
+For å gjenomføre analysen benytter jeg pakken GenericML. I rammeverket til GenericML kan man selv velge hvilke maskinlæringsmodeller som skal brukes, men pakken tilbyr ikke egen tuning av modellene. Derfor bruker jeg mlr3 til å tune og trene modellene før de brukes i CLAN-analysen. Bruken av mlr3 pakken til å tune er basert på anbefalingene til Bisch et al. (2024). 
 
 
 ```{r}
 
+#Databehandling
+
+set.seed(3110)
+
 kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
   "miss_edu_category", "married_control", "single_control", "widowed_control",
-  "miss_relationship", "household_size_control", "miss_household_size", "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
+  "miss_relationship", "household_size_control", "miss_household_size", 
+  "one_car_control","miss_cars", "mult_cars_control","LF_BL_control", "miss_LF_BL")
 
 
 data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
-
 
 Z <- as.matrix(data[, kovariater]) 
 
@@ -584,113 +589,88 @@ treat <- data$treatment |> as.numeric()
 
 Y <- data$license_w3 |> as.numeric()
 
+ml_data <- as_task_classif(data, "license_w3") # mlr3 krever at dataen er en 'task'
+# "license_w3" er den variablen vi ønsker å predikere.
 
 
-```
-
-
-
-Bruker fremgangsmetiden som MLr3 har anbefalt på netttsiden deres. Boken "Applied Machine Learning Using mlr3 in R" (Bischl et al., 2024)
-
-Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
-
-
-
-
-
-
-
-jeg vet egentlig ikke om Elastic net egner seg. ettersom at vi må standarisere 
-
-```{r}
-
-
-ml_data <- as_task_classif(data, "license_w3")
-
+cv<- rsmp("cv", folds = 10) # Bruker kryssvalidering
+measures = msr("classif.acc") # Accuracy som måleenhet
+type_tuner <- tnr("grid_search", resolution = 20) # Bruker grid search under tuning.
 
 ```
-
-Jeg tror nok det er denne jeg burde bruke 
-
-
 
 ### Tuner Elastic Net 
 
-```{r include=FALSE}
+```{r, results='hide'}
 set.seed(3110)
 
-ml_data <- as_task_classif(data, "license_w3")
-
-
-elnet <- lrn("classif.glmnet",
+elnet <- lrn("classif.glmnet",  # Tuner alpha og lambda
              alpha = to_tune(0,1),
              lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
 
-cv<- rsmp("cv", folds = 10)
-measures = msr("classif.acc")
-type_tuner <- tnr("grid_search", resolution = 20)
-
-instance = tune(
+instance_elasticnet = tune(
   tuner = type_tuner,
   task = ml_data,
   learner = elnet,
   resampling = cv,
   measures = measures,
-  terminator = trm("run_time", secs = 180) # Stopper etter 3min om ikke ferdig.
+  terminator = trm("run_time", secs = 300) # Stopper etter 3min om ikke ferdig.
 )
 
-alpha_tune <- instance$result$alpha
-lambda_tune <- 10^instance$result$lambda #konverter til vanlig skala fra log 10^lambda verdi
-
-as.data.table(instance$archive)[, .(alpha, lambda ,classif.acc)] |> arrange(desc(classif.acc))
-
+alpha_tune <- instance_elasticnet$result$alpha
+lambda_tune <- 10^instance_elasticnet$result$lambda #konverter til vanlig skala fra log 10^lambda verdi
 
 ```
 
+```{r}
+as.data.table(instance_elasticnet$archive)[, .(alpha, lambda ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Elastic Net")
+```
+Her er en oversikt over de best parameterkombinasjonene fra tuningen. `classif.acc` er relativ lik for mange ulike kombinasjoner. Det er spesielt interessant å se at en ren lasso modell (alpha = 1) var en av modellene som presterte best.  
 
 
 ### Tuner Random Forest
 
-```{r include=FALSE}
+```{r, results='hide'}
 
-set.seed(3110)
+set.seed(3110) 
 
 rf_mod <- lrn("classif.ranger",
-              mtry = to_tune(1, ncol(data) - 2), # Y og treatment
+              mtry = to_tune(1, ncol(data) - 2), # Minus Y og treatment
               num.trees = to_tune(100, 1000)
               ) 
 
-
-
-instance = tune(
+instance_rf = tune(
   tuner = type_tuner,
   task = ml_data,
   learner = rf_mod,
   resampling = cv,
   measures = measures,
-  terminator = trm("run_time", secs = 180)
+  terminator = trm("run_time", secs = 300)
 )
 
-mtry_tune <- instance$result$mtry
-num.trees_tune <- instance$result$num.trees
-
-
+mtry_tune <- instance_rf$result$mtry
+num.trees_tune <- instance_rf$result$num.trees
 ```
 
 ```{r}
-as.data.table(instance$archive)[, .(num.trees, mtry ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
+as.data.table(instance_rf$archive)[, .(mtry, num.trees ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Random Forest")
 ```
 
+For random forest modellen ser vi mtry for de beste modellene ligger på 2-3 mens antall trær varier stort uten å miste noe særlig prediksjonsnøyaktighet.
 
 ### Tuner neural net
 
+```{r, results='hide'}
 
-```{r include=FALSE}
 set.seed(3110)
 
 nn_learner <- lrn("classif.nnet",
                   size = to_tune(1, 5),
-                  decay = to_tune(0, 0.1)) # kan eventuelt se på output
+                  decay = to_tune(0, 0.1)) 
 
 instance_nnet = tune(
   tuner = type_tuner,
@@ -698,39 +678,42 @@ instance_nnet = tune(
   learner = nn_learner,
   resampling = cv,
   measures = measures,
-  terminator = trm("run_time", secs = 180)
+  terminator = trm("run_time", secs = 300)
 )
  
 size_tune <- instance_nnet$result$size
 decay_tune <- instance_nnet$result$decay
+
 ```
 
-
-
-
 ```{r}
-as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> arrange(desc(classif.acc)) |> head()
+as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption= "Tuning Neural Net")
 ```
 
+Tuningen viser at den beste modellen hadde 3 noder i hvert ledd, men likevel så ser vi at kompleksiteten av modellen ikke hadde særlig stor effekt på prediksjonsnøyaktighet.
 
 
 
-```{r}
-library(GenericML)
+### CLAN
 
+```{r, results='hide', message= F}
 set.seed(3110)
 
-learners <- c(
-  "mlr3::lrn('glmnet')",
-  "mlr3::lrn('ranger')",
-  "mlr3::lrn('kknn')"
-)
-
-elasticnet_learner <- paste("mlr3::lrn('cv_glmnet', alpha =", as.character(alpha_tune), ")")
-rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), ",num.trees =", as.character(num.trees_tune),")")
+elasticnet_learner <- paste("mlr3::lrn('glmnet', alpha =", as.character(alpha_tune),
+                            "," ,"lambda = ",as.character(lambda_tune),")" )
 
 
-nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), ",decay =", as.character(decay_tune),")")
+rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), 
+                    ",num.trees =", as.character(num.trees_tune),")")
+
+
+nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), 
+                      ",decay =", as.character(decay_tune),")")
+
+
+# Har ikke med "classif." som prefix, fordi dokumentasjon til pakken sier man skal ignorere det.
 
 learners <- c(elasticnet_learner, rf_learner, nnet_learner)
 
@@ -742,65 +725,90 @@ x <- GenericML(
   Z, treat, Y, learners,
   num_splits = num_splits,
   diff_CLAN = diff_clan,
-  significance_level = 0.025,
-  parallel = TRUE)
-
-x$best$overview;paste("Modell best egnet for CLAN:", x$best$CLAN)
-
+  significance_level = 0.025
+  )
 ```
 
-
-
-  
+```{r}
+paste("Modell best egnet for CLAN:", x$best$CLAN)
+```
+Henter ut verdier fra modellen
 
 ```{r}
 
-name <- c()
-d1 <- c()
-d2 <- c()
-d3 <- c()
-d4 <- c()
-difference <- c()
+Variabel <- c()
+Minst <- c()
+Konfidensintervall <- c()
+Mest <- c()
+Pverdi <- c()
 c <- 1
 
 for (i in kovariater)
 {
-  name[c] <- i
-  svar <- get_CLAN(x, variable = i, plot = FALSE)[1]$estimate
-  d1[c] <- svar[1]
-  d2[c] <- svar[2]
-  d3[c] <- svar[3]
-  d4[c] <- svar[4]
-  difference[c] <- svar[5]
+  Variabel[c] <- i
+  svar <- get_CLAN(x, variable = i, plot = FALSE)
+  Minst[c] <- svar$estimate[1] # 25 % minst påvirket
+  Mest[c] <- svar$estimate[4] # 25 % mest påvirket
+  Konfidensintervall[c] <- paste0("(",as.character(round(svar$confidence_interval[5],3)),",", as.character(round(svar$confidence_interval[10],3)),")")
+  Pverdi[c] <- svar$p_value[5]
   c <- c +1
 }
 
+estimater <- data.frame(Variabel,Minst,Mest, Konfidensintervall, Pverdi) 
 
-#estimater <- data.frame(name,d1,d2,d3,d4,difference)
+estimater <- estimater |> mutate(Forskjell = Mest -Minst)
 
-estimater <- data.frame(name,d1,d4,difference) 
+estimater[,c(2,3,5,6)] <- estimater[,c(2,3,5,6)] |> round(3)
 
-estimater <- estimater |> mutate(difference = d4 -d1)
+estimater <- estimater |> 
+  mutate(Pverdi = ifelse(Pverdi <= 0.001, paste0(Pverdi,"***"), 
+                              ifelse(Pverdi <= 0.01, paste0(Pverdi,"**"), 
+                                     ifelse(Pverdi <= 0.05, paste0(Pverdi,"***"), paste0(Pverdi)))))
+                              
 
-estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
 
-## Runde litt av-
+navn <- list("age_med_BL_control" = "Alder over median",
+     "miss_age_PAP" = "Manglende alder",
+     "edu_nohs_BL_control" = "Mindre enn vidregaaende skole",
+     "miss_edu_category" = "Manglende informasjon utdannelse",
+     "married_control" = "Gift",
+     "single_control" = "Singel",
+     "widowed_control" = "Enke",
+     "miss_relationship" = "Manglende sivilstatus",
+     "household_size_control" = "Storrelse husholdning",
+     "miss_household_size" = "Manglende husholdning informasjon",
+     "one_car_control" = "En bil i husholdningen",
+     "miss_cars" = "Manglende bil informasjopn",
+     "mult_cars_control" = "Flere biler i husholdningen",
+     "LF_BL_control" = "I arbeidsstyrken",
+     "miss_LF_BL" =  "Manglende arbeidsstyrkeinfo"
+     )
 
-kable(estimater)
+
+estimater$Variabel <- unlist(navn[estimater$Variabel])
+
+kable(estimater |> 
+        select(Variabel, Minst, Mest, Forskjell, Konfidensintervall, Pverdi), 
+      caption  = "CLAN av Recevied license") |> footnote(general = "*** p<0.01, ** p<0.05, * p<0.1,
+                                                         Konfidensintervaller er 95%")
 ```
 
+Behandlingen i Abou Daher et al. (2025) er randomisert. Ifølge Chernozhukov et al. (2018) kan estimatene fra CLAN-analysen tolkes kausalt. Tabellen består av fem kolonner. Den første `Variabel` viser alle kovariatene i analysen. Kolonnene `Minst` og `Mest` viser andelen av henholdsvis minst og mest påvirkede av behandlingen som har hver karakteristikk. Den fjerde kolonnen `Forskjell`, viser forskjellen av andeler mellom gruppen. Den siste kolonnen `Konfidensintervall` viser konfidensintervallet for `Forskjell`.
 
-Generic ML gir kausalt fordi RCT.l 
+Ved første øyekast ser det ut til at det er heterogene behandlingseffekter når det gjelder å klare å ta førerkort. Den første signifikante variabelen er for kvinner som ikke har fullført videregående skole. Det viser seg at kvinner som har lavt utdanningsnivå er blant de som får minst behandlingseffekt. Vi ser noe av den samme effekten som i panel a i tabell 2(Abou Daher et. al, 2024, s. 3263). Når det kommer til sivilstatus ser vi at kvinner som er gift også er en av gruppene som får minst behandlingseffekt. Vi ser noe av de samme tendensene hos enker som med kvinner som er gift, men ikke i like stor grad, likevel er det en tydelig negativ trend. I motsetning til dette så er single kvinner godt representert i gruppen som får størst behandlingseffekt. Dette kan kanskje tyde på at single kvinner ikke i like stor grad blir påvirket av sosial kontroll. Disse funnne stemmer godt overens med panel c i tabell 2(Abou Daher et. al, 2024, s. 3263). 
+ 
+
+Noe nokså overraskende i tabellen er hvordan `En bil i husholdningen` og `Flere biler i husholdningen` er knyttet negativt knyttet til gruppen med størst behandlingseffekt. Kvinner i husholdninger som har en eller flere biler er mer vanlige i den minst påvirkede gruppen. Man kan vel tenke seg at kvinner som bor i husholdninger med bil ville ha et større intensiv for å ta førerkort, siden man faktisk har bil til rådighet. På en annen side kan dette også forklares ved at husholdninger med flere biler har høyere økonomisk status som gjør at de i mindre grad responderer på behandlingen. Til slutt ser vi at nesten alle i gruppen med størst behandlingseffekt er sysselsatt. 
 
 
-KILDE:
+Kilder:
 
 Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
 
+Field, E., & Vyborny, K. (2025). Data and code for - Drivers of change: Employment responses to the lifting of the Saudi female driving ban . *American Economic Association; Inter-university Consortium for Political and Social Research*. https://doi.org/10.3886/E226844V1
+
 Chernozhukov, V., Demirer, M., Duflo, E., & Fernández-Val, I. (2018). Generic machine learning inference on heterogeneous treatment effects in randomized experiments, with an application to immunization in India. *National Bureau of Economic Research*. https://doi.org/10.3386/w24678
 
-
-
-KILDEKODEKILDE
+Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
 
 

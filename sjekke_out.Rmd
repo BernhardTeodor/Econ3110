@@ -18,18 +18,22 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 options(tinytex.verbose = TRUE)
 ```
 
+# Introduksjon
+
+I denne oppgaven skal jeg undersøke hetrogeniteter i behandlingseffekter med utgangspunkt i artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025). Oppgaven består av to hoveddeler. I den første skal jeg replisere tabeller fra artikkelen for å sjekke at estimatene er pålitelige. I den andre delen gjennomfører jeg en CLAN-analyse for å undersøke om behandlingseffektene varierer på tvers av kvinner når det gjelder å ta førerkort.
 
 # Replisering av tabeller
 
 I denne delen av oppgaven skal jeg replisere tabeller fra artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025).
 
 
-## Laste inn data
+### Laste inn data
 ```{r}
 library(haven) # Lese inn data sett
 library(dplyr) # Databehandling
 library(fixest) # Regresjon
 library(knitr) # Tabeller
+library(kableExtra) #Tabeller
 library(tidytext) # kompilering av fil
 library(GenericML) # CLAN
 library(mlr3) # ML
@@ -580,7 +584,7 @@ set.seed(3110)
 kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
   "miss_edu_category", "married_control", "single_control", "widowed_control",
   "miss_relationship", "household_size_control", "miss_household_size", 
-  "one_car_control","miss_cars", "LF_BL_control", "miss_LF_BL")
+  "one_car_control","miss_cars", "mult_cars_control","LF_BL_control", "miss_LF_BL")
 
 
 data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
@@ -627,9 +631,9 @@ lambda_tune <- 10^instance_elasticnet$result$lambda #konverter til vanlig skala 
 ```{r}
 as.data.table(instance_elasticnet$archive)[, .(alpha, lambda ,classif.acc)] |> 
   mutate(across(where(is.numeric), ~ round(.,4))) |> 
-  arrange(desc(classif.acc)) |> head() |> kable()
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Elastic Net")
 ```
-Her er en oversikt over de best parameterkombinasjonene fra tuningen. `classif.acc` er relativ for mange ulike kombinasjoner. Det er spesielt interessant å se at en ren lasso modell (alpha = 1) var en av modellene som presterte best.  
+Her er en oversikt over de best parameterkombinasjonene fra tuningen. `classif.acc` er relativ lik for mange ulike kombinasjoner. Det er spesielt interessant å se at en ren lasso modell (alpha = 1) var en av modellene som presterte best.  
 
 
 ### Tuner Random Forest
@@ -659,10 +663,10 @@ num.trees_tune <- instance_rf$result$num.trees
 ```{r}
 as.data.table(instance_rf$archive)[, .(mtry, num.trees ,classif.acc)] |> 
   mutate(across(where(is.numeric), ~ round(.,4))) |> 
-  arrange(desc(classif.acc)) |> head() |> kable()
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Random Forest")
 ```
 
-For random forest modellen ser vi mtry for de beste modellene ligger på 3 mens antall trær varier stort uten å miste noe særlig prediksjonsnøyaktighet.
+For random forest modellen ser vi mtry for de beste modellene ligger på 2-3 mens antall trær varier stort uten å miste noe særlig prediksjonsnøyaktighet.
 
 ### Tuner neural net
 
@@ -691,12 +695,10 @@ decay_tune <- instance_nnet$result$decay
 ```{r}
 as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> 
   mutate(across(where(is.numeric), ~ round(.,4))) |> 
-  arrange(desc(classif.acc)) |> head() |> kable()
+  arrange(desc(classif.acc)) |> head() |> kable(caption= "Tuning Neural Net")
 ```
 
-
-Tuningen viser at den beste modellen hadde 4 noder i hvert ledd, men likevel så ser vi at kompleksiteten av modellen ikke hadde særlig stor effekt på prediksjonsnøyaktighet.
-
+Tuningen viser at den beste modellen hadde 3 noder i hvert ledd, men likevel så ser vi at kompleksiteten av modellen ikke hadde særlig stor effekt på prediksjonsnøyaktighet.
 
 
 
@@ -704,7 +706,6 @@ Tuningen viser at den beste modellen hadde 4 noder i hvert ledd, men likevel så
 
 ```{r, results='hide', message= F}
 set.seed(3110)
-
 
 elasticnet_learner <- paste("mlr3::lrn('glmnet', alpha =", as.character(alpha_tune),
                             "," ,"lambda = ",as.character(lambda_tune),")" )
@@ -722,7 +723,6 @@ nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune),
 
 learners <- c(elasticnet_learner, rf_learner, nnet_learner)
 
-
 diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
 
 num_splits <- 10 # Default
@@ -733,7 +733,6 @@ x <- GenericML(
   diff_CLAN = diff_clan,
   significance_level = 0.025
   )
-
 ```
 
 ```{r}
@@ -741,35 +740,73 @@ paste("Modell best egnet for CLAN:", x$best$CLAN)
 ```
 Henter ut verdier fra modellen
 
+
 ```{r}
 
-name <- c()
-d1 <- c()
-d4 <- c()
+Variabel <- c()
+Minst <- c()
+Konfidensintervall <- c()
+Mest <- c()
+Pverdi <- c()
 c <- 1
 
 for (i in kovariater)
 {
-  name[c] <- i
-  svar <- get_CLAN(x, variable = i, plot = FALSE)[1]$estimate
-  d1[c] <- svar[1] # Laveste behandlingseffekt
-  d4[c] <- svar[4] # Høyest behandlingseffekt
+  Variabel[c] <- i
+  svar <- get_CLAN(x, variable = i, plot = FALSE)
+  Minst[c] <- svar$estimate[1] # 25 % minst påvirket
+  Mest[c] <- svar$estimate[4] # 25 % mest påvirket
+  Konfidensintervall[c] <- paste0("(",as.character(round(svar$confidence_interval[5],3)),",", as.character(round(svar$confidence_interval[10],3)),")")
+  Pverdi[c] <- svar$p_value[5]
+  print(svar)
   c <- c +1
 }
 
-estimater <- data.frame(name,d1,d4) 
+estimater <- data.frame(Variabel,Minst,Mest, Konfidensintervall, Pverdi) 
 
-estimater <- estimater |> mutate(difference = d4 -d1)
+estimater <- estimater |> mutate(Forskjell = Mest -Minst)
 
-estimater[,2:ncol(estimater)] <- estimater[,2:ncol(estimater)] |> round(3)
+estimater[,c(2,3,5,6)] <- estimater[,c(2,3,5,6)] |> round(3)
+
+estimater <- estimater |> 
+  mutate(Pverdi = ifelse(Pverdi <= 0.001, paste0(Pverdi,"***"), 
+                              ifelse(Pverdi <= 0.01, paste0(Pverdi,"**"), 
+                                     ifelse(Pverdi <= 0.05, paste0(Pverdi,"***"), paste0(Pverdi)))))
+                              
 
 
-kable(estimater)
+navn <- list("age_med_BL_control" = "Alder over median",
+     "miss_age_PAP" = "Manglende alder",
+     "edu_nohs_BL_control" = "Mindre enn vidregaaende skole",
+     "miss_edu_category" = "Manglende informasjon utdannelse",
+     "married_control" = "Gift",
+     "single_control" = "Singel",
+     "widowed_control" = "Enke",
+     "miss_relationship" = "Manglende sivilstatus",
+     "household_size_control" = "Storrelse husholdning",
+     "miss_household_size" = "Manglende husholdning informasjon",
+     "one_car_control" = "En bil i husholdningen",
+     "miss_cars" = "Manglende bil informasjopn",
+     "mult_cars_control" = "Flere biler i husholdningen",
+     "LF_BL_control" = "I arbeidsstyrken",
+     "miss_LF_BL" =  "Manglende arbeidsstyrkeinfo"
+     )
+
+
+estimater$Variabel <- unlist(navn[estimater$Variabel])
+
+kable(estimater |> 
+        select(Variabel, Minst, Mest, Forskjell, Konfidensintervall, Pverdi), 
+      caption  = "CLAN av Recevied license") |> footnote(general = "*** p<0.01, ** p<0.05, * p<0.1,
+                                                         Konfidensintervaller er 95%")
 ```
 
-Behandlingen i Abou Daher et al. (2025) er randomisert og vi kan derfor i følge Chernozhukov et al (2018) tolke estimatene fra CLAN-analysen kausalt. Tabellen består av fire kolonner. Den første viser alle kovariatene i analysen. De to neste `d1` og `d4` rep
+Behandlingen i Abou Daher et al. (2025) er randomisert. Ifølge Chernozhukov et al. (2018) kan estimatene fra CLAN-analysen tolkes kausalt. Tabellen består av fem kolonner. Den første `Variabel` viser alle kovariatene i analysen. Kolonnene `Minst` og `Mest` viser andelen av henholdsvis minst og mest påvirkede av behandlingen som har hver karakteristikk. Den fjerde kolonnen `Forskjell`, viser forskjellen av andeler mellom gruppen. Den siste kolonnen `Konfidensintervall` viser konfidensintervallet for `Forskjell`.
 
-EENDRE NAV I TABELLEN
+Ved første øyekast ser det ut til at det er heterogene behandlingseffekter når det gjelder å klare å ta førerkort. Den første signifikante variabelen er for kvinner som ikke har fullført videregående skole. Det viser seg at kvinner som har lavt utdanningsnivå er blant de som får minst behandlingseffekt. Når det kommer til sivilstatus ser vi at kvinner som er gift også er en av gruppene som får minst behandlingseffekt. Vi ser noe av de samme tendensene hos enker som med kvinner som er gift, men ikke i like stor grad, likevel er det en tydelig negativ trend. I motsetning til dette så er single kvinner godt representert i gruppen som får størst behandlingseffekt. Dette kan kanskje tyde på at single kvinner ikke i like stor grad blir påvirket av sosial kontroll.  
+ 
+
+Noe nokså overraskende i tabellen er hvordan `En bil i husholdningen` og `Flere biler i husholdningen` er knyttet negativt knyttet til gruppen med størst behandlingseffekt. Kvinner i husholdninger som har en eller flere biler er mer vanlige i den minst påvirkede gruppen. Man kan vel tenke seg at kvinner som bor i husholdninger med bil ville ha et større intensiv for å ta førerkort, siden man faktisk har bil til rådighet. På en annen side kan dette også forklares ved at husholdninger med flere biler har høyere økonomisk status som gjør at de i mindre grad responderer på behandlingen. Til slutt ser vi at nesten alle i gruppen med størst behandlingseffekt er sysselsatt. 
 
 
 Kilder:
@@ -778,19 +815,7 @@ Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change:
 
 Chernozhukov, V., Demirer, M., Duflo, E., & Fernández-Val, I. (2018). Generic machine learning inference on heterogeneous treatment effects in randomized experiments, with an application to immunization in India. *National Bureau of Economic Research*. https://doi.org/10.3386/w24678
 
-
 Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
-
-
-
-
-
-
-
-
-
-
-
 
 
 
