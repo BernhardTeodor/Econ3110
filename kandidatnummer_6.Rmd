@@ -1,0 +1,814 @@
+---
+title: "ECON3110: Gruppeoppgave"
+author: "Kandidatnummer: 6"
+date: "Høst 2025"
+output:
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage{fontspec}
+  - \usepackage{amsmath}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(tinytex.verbose = TRUE)
+```
+
+# Introduksjon
+
+I denne oppgaven skal jeg undersøke hetrogeniteter i behandlingseffekter med utgangspunkt i artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025). Oppgaven består av to hoveddeler. I den første skal jeg replisere tabeller fra artikkelen for å sjekke at estimatene er pålitelige. I den andre delen gjennomfører jeg en CLAN-analyse for å undersøke om behandlingseffektene varierer på tvers av kvinner når det gjelder å ta førerkort.
+
+# Replisering av tabeller
+
+I denne delen av oppgaven skal jeg replisere tabeller fra artikkel Drivers of change: Employment responses to the lifting of the Saudi female driving ban(Abou Daher et al, 2025).
+
+
+### Laste inn data
+```{r}
+library(haven) # Lese inn data sett
+library(dplyr) # Databehandling
+library(fixest) # Regresjon
+library(knitr) # Tabeller
+library(kableExtra) #Tabeller
+library(tidytext) # kompilering av fil
+library(GenericML) # CLAN
+library(mlr3) # ML
+library(mlr3tuning) # Tuning
+library(data.table) # Brukes med Ml3r
+
+df <- read_dta("data/Combined_allwaves_final.dta") # Leser data 
+
+df <- df |> 
+  mutate(miss_age_PAP = ifelse(is.na(age_med_BL), 1, 0)) |> 
+  mutate(age_med_BL_control= ifelse(is.na(age_med_BL), 0, 1))|> 
+  mutate(miss_household_size= ifelse(is.na(household_size), 1, 0))|> 
+  mutate(household_size_control= ifelse(is.na(household_size), 0, household_size)) |> 
+  mutate(miss_edu_category= ifelse(is.na(edu_nohs_BL), 1, 0))|> 
+  mutate(edu_nohs_BL_control= ifelse(is.na(edu_nohs_BL), 0, edu_nohs_BL))|> 
+  mutate(married_control= ifelse(is.na(married), 0, married))|> 
+  mutate(divorced_separated_control= ifelse(is.na(divorced_separated), 0,
+  divorced_separated))|> 
+  mutate(single_control= ifelse(is.na(single), 0, single))|> 
+  mutate(widowed_control= ifelse(is.na(widowed), 0, widowed))|> 
+  mutate(miss_relationship= ifelse(is.na(rel_status_BL), 1, 0))|> 
+  mutate(miss_cars= ifelse(is.na(cars), 1, 0))|> 
+  mutate(one_car_control= ifelse(is.na(one_car), 0, one_car))|> 
+  mutate(mult_cars_control= ifelse(is.na(mult_cars), 0, mult_cars))|> 
+  mutate(miss_LF_BL= ifelse(is.na(LF_BL), 1, 0))|> 
+  mutate(LF_BL_control= ifelse(is.na(LF_BL), 0, LF_BL)) |> 
+  filter(endline_start_w3==1)
+
+```
+
+### Tabell 1
+Tabell 1 i artikkelen viser estimert behandlingseffekten på ulike utfallsvariabler. For å replisere tabell 1 i artikkelen støtter jeg meg på kildekoden(Field & Vyborny, 2025). Jeg lager seks regresjoner, en for hver av utfallsvariablene: `s_train_bi_w3`(Started driver’s training),  `license_w3`(Received license), `employed_w3`(Employed), `unemployed_w3`(Unemployed), `G1_2_abovemed`(Allowed to leave house w/o permission), `G1_3_abovemed`(Allowed to make purchase w/o permission).
+
+Regresjonsmodellen har følgene form:
+
+$$
+Y_i = \beta_0 + \beta_1 Treatment + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
+$$
+Her er $Y_i$ en av utfallsvariablene som nevnt ovenfor. "Treatment" er en binær variabel som indikerer om noen har mottatt behandling. Variabelen $\mathbf{X}$ skal indikere alle kontrollvariablene vi bruker i regresjonen. $\alpha_i$ betegner bruken av fixed effects på variabelen `randomization_cohort2`(Randomization strata). Til slutt benyttes "clustered standard errors" på variabelen `file_nbr`(Houshold ID).
+
+For å gjennomføre regresjonene har jeg benyttet meg av pakken `fixest`. Dette gjør jeg fordi pakken har mange nyttige funksjoner som gjør at replisering av tabellene i artikkelen blir lettere. For det første er det enkelt å legge til "fixed effects" i regresjonen. Det kan man gjøre ved å legge til en pipe `|`. Ta f.eks. denne regresjonen: `feols(y ~ x_1 + x_2 | fe1, data)`, hvor `fe1` er fixed effects. For det andre kan man enkelt benytte "clustered standard errors" som de gjør i artikkelen. I tillegg kan man benytte seg av `etable()` som kan brukes til å lage fine regresjonstabeller.
+
+
+
+
+```{r}
+s_train <- feols(s_train_bi_w3 ~ treatment + age_med_BL_control + miss_age_PAP 
+                 + edu_nohs_BL_control + miss_edu_category + married_control 
+                 + single_control + widowed_control+ miss_relationship + household_size_control 
+                 + miss_household_size + one_car_control+ miss_cars + LF_BL_control 
+                 + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
+
+
+licence <- feols(license_w3~ treatment + age_med_BL_control + miss_age_PAP 
+                 + edu_nohs_BL_control+ miss_edu_category + married_control 
+                 + single_control + widowed_control+ miss_relationship 
+                 + household_size_control + miss_household_size + one_car_control
+                 + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                 cluster = c("file_nbr"), data = df)
+
+
+empl <- feols(employed_w3~ treatment +age_med_BL_control + miss_age_PAP 
+              + edu_nohs_BL_control+ miss_edu_category + married_control 
+              + single_control + widowed_control+ miss_relationship + household_size_control 
+              + miss_household_size + one_car_control + miss_cars + LF_BL_control 
+              + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr"), data = df)
+
+
+not_empl <- feols(unemployed_w3~  treatment + age_med_BL_control + miss_age_PAP 
+                  + edu_nohs_BL_control+ miss_edu_category + married_control
+                  + single_control + widowed_control+ miss_relationship 
+                  + household_size_control + miss_household_size + one_car_control
+                  + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                  cluster = c("file_nbr"), data = df)
+
+leave_house <- feols(G1_2_abovemed ~ treatment + age_med_BL_control + miss_age_PAP 
+                     + edu_nohs_BL_control+ miss_edu_category + married_control 
+                     + single_control + widowed_control+ miss_relationship 
+                     + household_size_control + miss_household_size + one_car_control
+                     + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                     cluster = c("file_nbr"), data = df)
+
+
+make_purchase <- feols(G1_3_abovemed ~ treatment + age_med_BL_control + miss_age_PAP 
+                       + edu_nohs_BL_control+ miss_edu_category + married_control 
+                       + single_control + widowed_control + miss_relationship 
+                       + household_size_control + miss_household_size + one_car_control
+                       + miss_cars + LF_BL_control + miss_LF_BL |randomization_cohort2, 
+                       cluster = c("file_nbr"), data = df)
+```
+
+
+Utforming av tabeller, her benytter jeg meg av funksjonen `fitstat_register()` som gjør det mulig å utforme egne funksjoner som man kan bruke når man lager regresjonstabellene. 
+
+
+```{r,warning=FALSE,results='asis'}
+
+
+fitstat_register("control_mean", function(x) mean(x), "Control mean")
+
+fitstat_register("mean", function(x) mean(x, na.rm = T), "control_m")
+
+fitstat_register("pval", function(x) pvalue(x), "p-value b = 0")
+
+fitstat_register("mean_c", 
+
+                 function(x){
+                   name <- x$fml[2] |> as.character()
+                   xer <- df |> 
+                   filter(treatment == 0) |> 
+                   select(name) |> pull()
+                   mean(xer,na.rm = T)
+                   }, 
+                 "Control mean"
+)
+
+fitstat_register("me", 
+
+                 function(x){
+                   name <- x$fml[2] |> as.character()
+                   xer <- df |> 
+                   filter(treatment == 0) |> 
+                   select(name) |> pull()
+                   
+                   x$coefficients[1]/ mean(xer,na.rm = T)
+                   }, 
+                 "b/Control mean"
+)
+
+controls <- c("miss_age_PAP","age_med_BL_control", "miss_edu_category", 
+              "married_control", "widowed_control","miss_relationship", 
+              "household_size_control", "miss_household_size","one_car_control", 
+              "mult_cars_control", "miss_cars","LF_BL_control", "LF_BL_control",
+              "edu_nohs_BL_control", "single_control", "miss_LF_BL", "Constant", 
+              "randomization_cohort2")
+
+setFixest_etable(drop.section = "fixef")
+
+t1pa <- etable(s_train,licence,
+       se.below=T, 
+       drop = controls, 
+       title ="Tabell 1 Panel A for Started driver`s training og Received license ", 
+       digits = "r3",digits.stats = "r3",
+       tex = T, 
+       signif.code = NA,
+       dict=c(treatment = "Treatment", 
+              s_train_bi_w3 = "Started driver`s training", 
+              license_w3 = "Received license", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~ n + mean_c +me + pval)
+
+
+t1pb <- etable(empl,not_empl ,
+       se.below=T, 
+       drop = controls, 
+       title ="Tabell 1 Panel B for Employed og Unemployed",
+       digits = "r3",digits.stats = "r3",
+       tex = T, 
+       signif.code = NA,
+       dict=c(treatment = "Treatment", 
+              employed_w3 = "Employed", 
+              unemployed_w3 = "Unemployed", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~ n + mean_c +me + pval)
+
+
+t1pc <- etable(leave_house, make_purchase,
+       se.below=T,
+       tex = T,
+       drop = controls,
+       depvar = F,
+       title = "Tabell 1 Panel C for Allowed to leave house w/o permission og 
+       Allowed to make purchase w/o permission",
+       digits = "r3",digits.stats = "r3",
+       headers = .(":_:" = .("Agreement with following statements"),
+                   ":_:" = c("Allowed to leave house w/o permission", 
+                             "Allowed to make purchase w/o permission")),
+       signif.code = NA,
+       dict=c(treatment = "Treatment", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~ n + mean_c +me + pval)
+
+
+```
+
+
+```{r echo=FALSE, results='asis'}
+t1pa
+```
+
+### *Tabell 1 Panel A for Started driver`s training og Received license*
+
+Å motta tilbud om kjøreopplæring økte sannsynligheten for å ha startet kjøreopplæring med 61,9 (se = 0.04) prosentpoeng, noe som er signifikant. Gjennomsnittet i kontrollgruppen var 0,192 (19,2%), så gitt at en person er i behandlingsgruppen så er det en forventet 81 prosent sannsynlighet for at vedkommende startet med kjøreopplæring.
+
+Behandlingen ga også en gjennomsnittlig økning på 43 (se = 0.039) prosentpoeng på om vedkommende klarte å ta førerkort. Sammenlignet med kontrollgruppen sin andel på ti prosent ser vi at effekten av å motta opplæring er om lag 4 ganger så stor som kontrollgruppa. Gitt at en person er i behandlingsgruppen er den forventede sannsynligheten for å ha tatt førerkort om lag 53 prosent for gjennomsnittpersonen.
+
+
+```{r echo=FALSE, results='asis'}
+t1pb
+```
+
+
+### *Tabell 1 Panel B for Employed og Unemployed*
+
+I denne tabellen ser vi på hvordan behandlingen påvirker arbiedsstatus. Behandlingen økte sannsynligheten for å være i arbeid med 8.5 prosentpoeng sllik at behandlingsgruppa har en forventet sannsynlighet på 29,5 prosent for å være i arbeid. Resultat er akkurat signifikant under fem prosent med en p-verdi på 0,049.
+
+Samtidig som at behandlingen øker sannsynligheten for å bli ansatt, synker sannsynligheten for å være uten arbeid ved behandling. Ved å være i behandlingsgruppa reduserte dette sannsynligheten for å være arbeidsledig med 10,5 prosentpoeng, estimatet er signifikant på 5 prosent med tilhørende p-verdi på 0,032. Dette gir at behandlingsgruppa har en forventet sannsynlighet på 0,464(46,4%) for å være arbeidsledig.
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+t1pc
+```
+
+
+### *Tabell 1 Panel C for Allowed to leave house w/o permission og Allowed to make purchase w/o permission*
+
+I denne tabellen viser man hvordan behandlingen påvirker kvinnes selvstendighet i hverdagen. Ved behandling økte sannsynligheten for at kvinner forlot huset uten tillatelse med 6,2 prosentpoeng. Den forventede sannsynligheten for at kvinner gjør det er 0,406(40,6 %). Effekten derimot er ikke signifikant med en tilhørende p-verdi på 0,184.
+
+Samtidig reduserer behandlingen tilbøyeligheten for å foreta kjøp uten tillatelse med 9 prosentpoeng, noe som gir en forventet sannsynlighet på 0,394(39.4 %). Dette resultatet er ikke signifikant på fem prosent med en p-verdi på 0,059, men kan tyde på at det har en viss innvirkning.
+```{=latex}
+\vspace{1.5cm}
+```
+
+
+
+Sammenlignet med tabell 1 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning. Det er noen avvik her og der, men da dreier det seg om hundredeler. Resultatene samsvarer godt med artikkelen(Abou Daher et al, 2025, s. 3258-3259) som viser at analysen er reproduserbar.
+
+
+
+```{=latex}
+\vspace{3cm}
+```
+
+## Tabell 2
+
+Tabell 2 viser hetrogeniteter i behandlingseffekter. For å replisere tabell 2 i artikkelen støtter jeg meg på kildekoden(Field & Vyborny, 2025). Regresjonene prøver å estimere hetrogenitet i behandlingseffekter med hensyn på fem variabler: `age_med_BL`(Age above median indicator), `edu_nohs_BL`(Less than HIgh school education), `single`, `married` og `widowed` for tre ulike utfallsvariabler: `license_w3`(Received license), `employed_w3`(Employed) og `G1_3_abovemed`(Allowed to make purchase w/o permission). 
+Regresjonene har følgende form:
+
+
+$$
+Y_i = \beta_0 + \beta_1 Treatment_i + \beta_2 Z_i + \beta_3(Treatment_i \times Z_i) + \beta' \mathbf{X}_i + \alpha + \varepsilon_i
+$$
+Regresjonen er nesten helt lik som for tabell 1, men leddet $\beta_2 Z_i + \beta_3(Treatment_i \times Z_i)$ blir inkludert for å estimere hetrogenitet i behandlinseffekter. Her representerer $Z_i$ en av variablene som skal undersøkes. 
+
+
+
+```{r}
+##### Panel a
+
+rl2a <- feols(license_w3 ~ treatment + age_med_BL + treatment:age_med_BL + miss_age_PAP 
+              + miss_edu_category + married_control + single_control + widowed_control
+              + miss_relationship + household_size_control + miss_household_size 
+              + one_car_control+ miss_cars  + miss_LF_BL |randomization_cohort2, 
+              cluster = c("file_nbr"),data = df)
+
+
+emp2a <- feols(employed_w3 ~ treatment +age_med_BL+ treatment:age_med_BL+ miss_age_PAP 
+               + miss_edu_category + married_control + single_control + widowed_control
+               + miss_relationship + household_size_control + miss_household_size 
+               + one_car_control+ miss_cars  + miss_LF_BL |randomization_cohort2, 
+               cluster = c("file_nbr"),data = df)
+
+
+make_purchase2a <- feols(G1_3_abovemed ~ treatment +age_med_BL  
+                         + treatment:age_med_BL+ miss_age_PAP  + miss_edu_category 
+                         + married_control + single_control + widowed_control 
+                         + miss_relationship + household_size_control 
+                         + miss_household_size + one_car_control + miss_cars  
+                         + miss_LF_BL |randomization_cohort2, cluster = c("file_nbr") 
+                         ,data = df)
+
+
+##### Panel b
+
+rl2b <- feols(license_w3 ~ treatment + edu_nohs_BL  + treatment:edu_nohs_BL
+              + miss_age_PAP + miss_edu_category + married_control + single_control 
+              + widowed_control+ miss_relationship + household_size_control 
+              + miss_household_size + one_car_control + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr"),data = df)
+
+
+emp2b <- feols(employed_w3 ~ treatment + edu_nohs_BL + treatment:edu_nohs_BL  
+               + miss_age_PAP  + miss_edu_category + married_control + single_control 
+               + widowed_control + miss_relationship + household_size_control 
+               + miss_household_size + one_car_control+ miss_cars  + miss_LF_BL 
+               |randomization_cohort2, cluster = c("file_nbr"),data = df)
+
+
+make_purchase2b <- feols(G1_3_abovemed ~ treatment + edu_nohs_BL 
+                         + treatment:edu_nohs_BL + miss_age_PAP + miss_edu_category 
+                         + married_control + single_control + widowed_control 
+                         + miss_relationship + household_size_control + miss_household_size 
+                         + one_car_control + miss_cars  + miss_LF_BL 
+                         |randomization_cohort2, cluster = c("file_nbr")
+                         ,data = df)
+
+##### Panel c
+
+
+rl2c <- feols(license_w3 ~ treatment + single_control + married_control+ widowed_control
+              + treatment:married + treatment:single + treatment:widowed 
+              + miss_age_PAP + miss_edu_category + miss_relationship 
+              + household_size_control + miss_household_size + one_car_control
+              + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr")
+              ,data = df)
+
+emp2c <- feols(employed_w3 ~ treatment + single_control + married_control+ widowed_control
+              + treatment:married + treatment:single + treatment:widowed 
+              + miss_age_PAP + miss_edu_category + miss_relationship 
+              + household_size_control + miss_household_size + one_car_control
+              + miss_cars  + miss_LF_BL 
+              |randomization_cohort2, cluster = c("file_nbr")
+              ,data = df)
+
+make_purchase2c <- feols(G1_3_abovemed~ treatment + single_control + married_control
+                         + widowed_control+ treatment:married + treatment:single 
+                         + treatment:widowed + miss_age_PAP + miss_edu_category 
+                         + miss_relationship + household_size_control + miss_household_size 
+                         + one_car_control+ miss_cars  + miss_LF_BL |randomization_cohort2, 
+                         cluster = c("file_nbr"),data = df)
+```
+
+
+Utforming av tabeller. 
+
+```{r,results='asis'}
+
+
+hte_var <- c("age_med_BL_control", "edu_nohs_BL_control","LF_BL_control" )
+
+panelb_controls <- c("miss_age_PAP", "miss_edu_category", "married_control", 
+                     "widowed_control","miss_relationship", "household_size_control", 
+                     "miss_household_size","one_car_control", "mult_cars_control", 
+                     "miss_cars", "LF_BL_control", "single_control", "miss_LF_BL", 
+                     "Constant", "randomization_cohort2")
+
+
+fitstat_register("samlet", 
+        function(x){
+          antall_koeff <- length(x$coefficients)
+          b_1 <- x$coefficients[1]
+          b_3 <- x$coefficients[antall_koeff]
+          
+          round(b_1 + b_3,3) 
+        }, 
+        "B1 + B3"
+        )
+
+
+fitstat_register("se", 
+        
+                 function(x){
+          antall_koeff <- length(x$coefficients)
+          
+          v_b_1 <- x$se[1]**2
+          v_b_3 <- x$se[antall_koeff]**2
+          
+          cov13 <- x$cov.unscaled[antall_koeff]
+          
+          se <- sqrt(v_b_1 + v_b_3 + 2*cov13)
+          
+          paste0("(",round(se,3),")")
+        }, 
+        " "
+        )
+
+fitstat_register("median_age", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   
+                   df |> 
+                     filter(treatment == 0 & age_med_BL == 0) |> 
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                 }, "Mean: control, below median age")
+
+
+fitstat_register("hs", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   
+                   df |> 
+                     filter(treatment == 0 & edu_nohs_BL == 0) |> 
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                 },
+                 "Mean: control, completed HS")
+fitstat_register("mcd", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & divorced_separated == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, divorced")
+
+fitstat_register("mcm", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & married == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, married")
+fitstat_register("mcnm", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & single == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, never married")
+
+fitstat_register("mcw", 
+                 function(x){
+                   
+                   name <- formula(x)[2] |> as.character()
+                   df |> filter(treatment == 0 & widowed == 1) |>  
+                     pull(name) |> mean(na.rm = T) |> round(3)
+                   
+                   
+                 }, "Mean: control, widowed")
+
+
+
+panela <- etable(rl2a,emp2a,make_purchase2a, se.below = T,
+       tex = T, title = "Panel A",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              age_med_BL = "Above median age", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~samlet+ se+ n +  median_age);
+
+panelb <- etable(rl2b,emp2b,make_purchase2b, se.below = T,
+       tex = T, title = "Panel B",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              edu_nohs_BL = "Less than HS", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~samlet+ se+ n + hs )
+
+panelc <- etable(rl2c, emp2c, make_purchase2c, se.below = T,
+       tex = T, title = "Panel C",
+       drop = panelb_controls,
+       digits = "r3",digits.stats = "r3",
+       signif.code = NA,
+       dict=c(treatment = "Treatment",
+              license_w3 = "Received license",
+              G1_3_abovemed = "Allowed to make purchase w/o permission",
+              employed_w3 = "Employed",
+              single = "never married", 
+              randomization_cohort2 = ""),
+       style.tex = style.tex("qje", ),
+       fitstat = ~n+mcd + mcm + mcnm + mcw)
+
+
+
+
+```
+```{r echo=FALSE, results='asis'}
+panela
+```
+### *Panel A*
+
+Tabellen viser hvordan behandlingseffekten varier med alder på tre ulike utfallsvariabler. Den første variabelen `Received license` ser vi at for kvinner under median alder øker sannsynligheten for å få førerkort med 52,6 prosentpoeng. Vi ser gjennom  interaction leddet at kvinner over median alder har en lavere behandlingseffekt med 18,9 prosentpoeng, men den totale behandlingseffekten for kvinner over median alder er likevel 33,8 prosentpoeng høyere enn for kvinner uten behandling. Det er likevel litt interessant å se at kvinner i kontrollgruppen som bestod av kvinner  under median alder, var det kun  ni prosent som fikk førerkort. Dette illustrere at behandlingen hadde spesielt stor effekt for deltagere under median alder. 
+
+For den andre utfallsvariabelen `Employed`ser vi en oppgang på 13,9 prosentpoeng ved behandling for kvinner som er under median alder. På den andre siden ser vi at eldre kvinner har en mye mindre behandlingseffekt på kun 3,4 prosentpoeng høyere enn kvinner som ikke får behandling. Resultatet peker mot at behandlingen har klart sterkere effekter på yngre kvinner. Til slutt har vi utfallsvariabelen `Allowed to make purchase w/o permission`. I første omgang ser vi en marginal økning på 3,8 prosentpoeng for kvinner under median alder. På den andre siden ser vi en sterk nedgang for eldre kvinner på 20,8 prosentpoeng. Det ser ut til at behandlingen har motsatt effekt for eldre kvinner enn det som kanskje var tiltenkt.
+
+
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+panelb
+```
+
+
+### *Panel B*
+I denne tabellen ser vi hvordan utdanningsnivå påvirker behandlingseffekten, særlig blant kvinner som har fullført videregående eller ikke. For variabelen `Received license` ser vi at behandlingen fører til en 50,7 prosentpoengs økning for kvinner som har fullført videregående. Interaksjonsleddet forteller oss derimot at kvinner som ikke hadde fullført videregående skole, så var effekten 23 prosentpoeng lavere. Dette fører til en total økning på 27,7 prosentpoeng for kvinner i behandlingsgruppen uten videregående skole. Sammenlignet med kontrollgruppen, hvor andelen er 12,9 prosent, ser vi at behandlingen hadde positiv virkning for alle i behandlingsgruppen, men særlig for kvinner som har gjennomført videregående skole.  
+
+For `Employed` ser vi at behanlingseffekten er noe større for kvinner uten videregående skole på 10,7 prosentpoeng mot 7,8 prosentpoeng. Koeffisientene er imidlertid ikke statistisk signifikante og vi kan derfor ikke fastslå at forskjellen mellom gruppene er forskjellig null. Variabelen `Allowed to make purchase w/o permission` har negativ trend , men ingen av de individuelle koeffisientene for behandling eller utdanning er signifikante. Den totale effekten for behandlingsgruppen er derimot signifikant og viser en reduksjon på 20,9 prosentpoeng. Dette tyder på at behandlingen samlet sett reduserte sannsynligheten for at kvinner får lov til å gjøre innkjøp uten tillatelse,
+
+
+```{=latex}
+\vspace{1.5cm}
+```
+
+```{r echo=FALSE, results='asis'}
+panelc
+```
+
+### *Panel C*
+
+I denne tabellen ser vi på hvordan sivilstatus til kvinner påvirker utfallsvariablene. For `Received license` ser vi at behandlingen for kvinner i referansegruppen(skilt), gir en økning med 43,3 prosentpoeng. Koeffisientene for interaksjon med sivilstatus viser varierende effekter, men ingen av dem er signifikante. Dette betyr at vi ikke kan konkludere med at behandlingen faktisk har en forskjell på tvers av sivilstatus. Tilsvarende for `Employed ` er ingen av resultatene signifikante, som betyr at vi ikke kan konkludere med at behandlingen påvirker sysselsettingen ulikt for de forskjellige gruppene. Til slutt har vi `Allowed to make purchase w/o permission`, her har behandlingen en negativ effekt på kvinner som er skilt, med 22,1 prosent poeng. For kvinner som aldri har vært gift økte tilbøyeligheten med 34,4 prosent for å gjøre kjøp uten tillatelse. For gruppene `Married` og `widowed` er resultatene ikke signifikante.  
+
+```{=latex}
+\vspace{1cm}
+```
+
+Igjen, sammenlignet med tabell 3 i artikkelen ser vi at tallene er relativt like. Alle estimatene peker i samme retning og vi får kun avvik hvor det dreier seg om hundredeler. Resultatene samsvarer godt med det man finner i artikkelen (Abou Daher et al, 2025, s.3265)
+
+
+
+# CLAN-analyse
+
+I denne delen av oppgaven gjennomføre jeg en CLAN-analyse på utfallsvariabelen `Received license`(`license_w3`). Analysen bygger på metodikken introdusert av Chernozhukov et al. (2018) og går ut på å bruke maskinlæring til å estimere egenskaper ved CATE-funksjonen(conditional average treatment effect), og bruker disse til å estimere karakteristikaenetil de minst og mest påvirkede gruppene. 
+
+For å gjenomføre analysen benytter jeg pakken GenericML. I rammeverket til GenericML kan man selv velge hvilke maskinlæringsmodeller som skal brukes, men pakken tilbyr ikke egen tuning av modellene. Derfor bruker jeg mlr3 til å tune og trene modellene før de brukes i CLAN-analysen. Bruken av mlr3 pakken til å tune er basert på anbefalingene til Bisch et al. (2024). 
+
+
+```{r}
+
+#Databehandling
+
+set.seed(3110)
+
+kovariater <- c("age_med_BL_control", "miss_age_PAP", "edu_nohs_BL_control",
+  "miss_edu_category", "married_control", "single_control", "widowed_control",
+  "miss_relationship", "household_size_control", "miss_household_size", 
+  "one_car_control","miss_cars", "mult_cars_control","LF_BL_control", "miss_LF_BL")
+
+
+data <- df[,c(kovariater, "license_w3", "treatment")] |> na.omit()
+
+Z <- as.matrix(data[, kovariater]) 
+
+treat <- data$treatment |> as.numeric()
+
+Y <- data$license_w3 |> as.numeric()
+
+ml_data <- as_task_classif(data, "license_w3") # mlr3 krever at dataen er en 'task'
+# "license_w3" er den variablen vi ønsker å predikere.
+
+
+cv<- rsmp("cv", folds = 10) # Bruker kryssvalidering
+measures = msr("classif.acc") # Accuracy som måleenhet
+type_tuner <- tnr("grid_search", resolution = 20) # Bruker grid search under tuning.
+
+```
+
+### Tuner Elastic Net 
+
+```{r, results='hide'}
+set.seed(3110)
+
+elnet <- lrn("classif.glmnet",  # Tuner alpha og lambda
+             alpha = to_tune(0,1),
+             lambda = to_tune((p_dbl(lower = 1e-4, upper = 1, logscale = T))))
+
+instance_elasticnet = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = elnet,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300) # Stopper etter 3min om ikke ferdig.
+)
+
+alpha_tune <- instance_elasticnet$result$alpha
+lambda_tune <- 10^instance_elasticnet$result$lambda #konverter til vanlig skala fra log 10^lambda verdi
+
+```
+
+```{r}
+as.data.table(instance_elasticnet$archive)[, .(alpha, lambda ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Elastic Net")
+```
+Her er en oversikt over de best parameterkombinasjonene fra tuningen. `classif.acc` er relativ lik for mange ulike kombinasjoner. Det er spesielt interessant å se at en ren lasso modell (alpha = 1) var en av modellene som presterte best.  
+
+
+### Tuner Random Forest
+
+```{r, results='hide'}
+
+set.seed(3110) 
+
+rf_mod <- lrn("classif.ranger",
+              mtry = to_tune(1, ncol(data) - 2), # Minus Y og treatment
+              num.trees = to_tune(100, 1000)
+              ) 
+
+instance_rf = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = rf_mod,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300)
+)
+
+mtry_tune <- instance_rf$result$mtry
+num.trees_tune <- instance_rf$result$num.trees
+```
+
+```{r}
+as.data.table(instance_rf$archive)[, .(mtry, num.trees ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption = "Tuning Random Forest")
+```
+
+For random forest modellen ser vi mtry for de beste modellene ligger på 2-3 mens antall trær varier stort uten å miste noe særlig prediksjonsnøyaktighet.
+
+### Tuner neural net
+
+```{r, results='hide'}
+
+set.seed(3110)
+
+nn_learner <- lrn("classif.nnet",
+                  size = to_tune(1, 5),
+                  decay = to_tune(0, 0.1)) 
+
+instance_nnet = tune(
+  tuner = type_tuner,
+  task = ml_data,
+  learner = nn_learner,
+  resampling = cv,
+  measures = measures,
+  terminator = trm("run_time", secs = 300)
+)
+ 
+size_tune <- instance_nnet$result$size
+decay_tune <- instance_nnet$result$decay
+
+```
+
+```{r}
+as.data.table(instance_nnet$archive)[, .(size, decay ,classif.acc)] |> 
+  mutate(across(where(is.numeric), ~ round(.,4))) |> 
+  arrange(desc(classif.acc)) |> head() |> kable(caption= "Tuning Neural Net")
+```
+
+Tuningen viser at den beste modellen hadde 3 noder i hvert ledd, men likevel så ser vi at kompleksiteten av modellen ikke hadde særlig stor effekt på prediksjonsnøyaktighet.
+
+
+
+### CLAN
+
+```{r, results='hide', message= F}
+set.seed(3110)
+
+elasticnet_learner <- paste("mlr3::lrn('glmnet', alpha =", as.character(alpha_tune),
+                            "," ,"lambda = ",as.character(lambda_tune),")" )
+
+
+rf_learner <- paste("mlr3::lrn('ranger', mtry =", as.character(mtry_tune), 
+                    ",num.trees =", as.character(num.trees_tune),")")
+
+
+nnet_learner <- paste("mlr3::lrn('nnet', size =", as.character(size_tune), 
+                      ",decay =", as.character(decay_tune),")")
+
+
+# Har ikke med "classif." som prefix, fordi dokumentasjon til pakken sier man skal ignorere det.
+
+learners <- c(elasticnet_learner, rf_learner, nnet_learner)
+
+diff_clan <- setup_diff(subtract_from = "most", subtracted = 1)
+
+num_splits <- 10 # Default
+
+x <- GenericML(
+  Z, treat, Y, learners,
+  num_splits = num_splits,
+  diff_CLAN = diff_clan,
+  significance_level = 0.025
+  )
+```
+
+```{r}
+paste("Modell best egnet for CLAN:", x$best$CLAN)
+```
+Henter ut verdier fra modellen
+
+```{r}
+
+Variabel <- c()
+Minst <- c()
+Konfidensintervall <- c()
+Mest <- c()
+Pverdi <- c()
+c <- 1
+
+for (i in kovariater)
+{
+  Variabel[c] <- i
+  svar <- get_CLAN(x, variable = i, plot = FALSE)
+  Minst[c] <- svar$estimate[1] # 25 % minst påvirket
+  Mest[c] <- svar$estimate[4] # 25 % mest påvirket
+  Konfidensintervall[c] <- paste0("(",as.character(round(svar$confidence_interval[5],3)),",", as.character(round(svar$confidence_interval[10],3)),")")
+  Pverdi[c] <- svar$p_value[5]
+  c <- c +1
+}
+
+estimater <- data.frame(Variabel,Minst,Mest, Konfidensintervall, Pverdi) 
+
+estimater <- estimater |> mutate(Forskjell = Mest -Minst)
+
+estimater[,c(2,3,5,6)] <- estimater[,c(2,3,5,6)] |> round(3)
+
+estimater <- estimater |> 
+  mutate(Pverdi = ifelse(Pverdi <= 0.001, paste0(Pverdi,"***"), 
+                              ifelse(Pverdi <= 0.01, paste0(Pverdi,"**"), 
+                                     ifelse(Pverdi <= 0.05, paste0(Pverdi,"*"), paste0(Pverdi)))))
+                              
+
+
+navn <- list("age_med_BL_control" = "Alder over median",
+     "miss_age_PAP" = "Manglende alder",
+     "edu_nohs_BL_control" = "Mindre enn vidregaaende skole",
+     "miss_edu_category" = "Manglende informasjon utdannelse",
+     "married_control" = "Gift",
+     "single_control" = "Singel",
+     "widowed_control" = "Enke",
+     "miss_relationship" = "Manglende sivilstatus",
+     "household_size_control" = "Storrelse husholdning",
+     "miss_household_size" = "Manglende husholdning informasjon",
+     "one_car_control" = "En bil i husholdningen",
+     "miss_cars" = "Manglende bil informasjopn",
+     "mult_cars_control" = "Flere biler i husholdningen",
+     "LF_BL_control" = "I arbeidsstyrken",
+     "miss_LF_BL" =  "Manglende arbeidsstyrkeinfo"
+     )
+
+
+estimater$Variabel <- unlist(navn[estimater$Variabel])
+
+kable(estimater |> 
+        select(Variabel, Minst, Mest, Forskjell, Konfidensintervall, Pverdi), 
+      caption  = "CLAN av Recevied license") |> footnote(general = "*** p<0.01, ** p<0.05, * p<0.1,
+                                                         Konfidensintervaller er 95%")
+```
+
+Behandlingen i Abou Daher et al. (2025) er randomisert. Ifølge Chernozhukov et al. (2018) kan estimatene fra CLAN-analysen tolkes kausalt. Tabellen består av fem kolonner. Den første `Variabel` viser alle kovariatene i analysen. Kolonnene `Minst` og `Mest` viser andelen av henholdsvis minst og mest påvirkede av behandlingen som har hver karakteristikk. Den fjerde kolonnen `Forskjell`, viser forskjellen av andeler mellom gruppen. Den siste kolonnen `Konfidensintervall` viser konfidensintervallet for `Forskjell`.
+
+Ved første øyekast ser det ut til at det er heterogene behandlingseffekter når det gjelder å klare å ta førerkort. Den første signifikante variabelen er for kvinner som ikke har fullført videregående skole. Det viser seg at kvinner som har lavt utdanningsnivå er blant de som får minst behandlingseffekt. Vi ser noe av den samme effekten som i panel a i tabell 2(Abou Daher et. al, 2024, s. 3263). Når det kommer til sivilstatus ser vi at kvinner som er gift også er en av gruppene som får minst behandlingseffekt. Vi ser noe av de samme tendensene hos enker som med kvinner som er gift, men ikke i like stor grad, likevel er det en tydelig negativ trend. I motsetning til dette så er single kvinner godt representert i gruppen som får størst behandlingseffekt. Dette kan kanskje tyde på at single kvinner ikke i like stor grad blir påvirket av sosial kontroll. Disse funnne stemmer godt overens med panel c i tabell 2(Abou Daher et. al, 2024, s. 3263). 
+ 
+
+Noe nokså overraskende i tabellen er hvordan `En bil i husholdningen` og `Flere biler i husholdningen` er knyttet negativt knyttet til gruppen med størst behandlingseffekt. Kvinner i husholdninger som har en eller flere biler er mer vanlige i den minst påvirkede gruppen. Man kan vel tenke seg at kvinner som bor i husholdninger med bil ville ha et større intensiv for å ta førerkort, siden man faktisk har bil til rådighet. På en annen side kan dette også forklares ved at husholdninger med flere biler har høyere økonomisk status som gjør at de i mindre grad responderer på behandlingen. Til slutt ser vi at nesten alle i gruppen med størst behandlingseffekt er sysselsatt. 
+
+
+Kilder:
+
+Abou Daher, C., Field, E., Swanson, K., & Vyborny, K. (2025). Drivers of change: Employment responses to the lifting of the Saudi female driving ban.* American Economic Review,* 115(9), 3248‑3271. https://doi.org/10.1257/aer.20240119
+
+Field, E., & Vyborny, K. (2025). Data and code for - Drivers of change: Employment responses to the lifting of the Saudi female driving ban . *American Economic Association; Inter-university Consortium for Political and Social Research*. https://doi.org/10.3886/E226844V1
+
+Chernozhukov, V., Demirer, M., Duflo, E., & Fernández-Val, I. (2018). Generic machine learning inference on heterogeneous treatment effects in randomized experiments, with an application to immunization in India. *National Bureau of Economic Research*. https://doi.org/10.3386/w24678
+
+Bischl, B., Sonabend, R., Kotthoff, L., & Lang, M. (2024). *Applied Machine Learning using mlr3 in R*.CRC Press  https://mlr3book.mlr-org.com/
+
+
