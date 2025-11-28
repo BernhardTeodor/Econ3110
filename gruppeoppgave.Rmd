@@ -1,6 +1,6 @@
 ---
-title: "Gruppeoppgave"
-author: "Kandidatnummer: "
+title: "ECON3110: Gruppeoppgave"
+author: "Kandidatnummer: 6"
 date: "Høst 2025"
 output:
   pdf_document:
@@ -763,7 +763,7 @@ estimater[,c(2,3,5,6)] <- estimater[,c(2,3,5,6)] |> round(3)
 estimater <- estimater |> 
   mutate(Pverdi = ifelse(Pverdi <= 0.001, paste0(Pverdi,"***"), 
                               ifelse(Pverdi <= 0.01, paste0(Pverdi,"**"), 
-                                     ifelse(Pverdi <= 0.05, paste0(Pverdi,"***"), paste0(Pverdi)))))
+                                     ifelse(Pverdi <= 0.05, paste0(Pverdi,"*"), paste0(Pverdi)))))
                               
 
 
