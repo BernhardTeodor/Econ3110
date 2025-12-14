@@ -1,0 +1,336 @@
+---
+title: "Algoritnmer"
+author: "Bernhard Teodor Thodesen"
+date: "2025-12-14"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+
+## Bootstrapping
+
+
+
+```{r}
+# Returnerer et bootstrappa dataframe
+bs <- function(x) x[sample(1:nrow(x), nrow(x), replace = T),]
+```
+
+
+## Regulariseringsmodeller
+
+
+# Lasso
+
+```{r}
+
+library(glmnet)
+
+lasso.results <- c()
+n <- 100 
+
+for (i in 1:n) 
+{
+  x <- bs(df) |> as.matrix() # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  lasso.mod <- cv.glmnet( # Lasso hvor vi tuner lambda med cryssvalidering
+      training[,-1],
+      training[,1] ,
+      alpha = 1,
+      type.measure = "mse",
+      standardize =T  # standariserer
+      )
+  
+  best.lambda <- lasso.mod$lambda.min # beste lambda 
+  
+  lasso.preds <- predict(lasso.mod, testing[,-1], s = best.lambda)
+  
+  lasso.mse <- mean( (testing[,1] - lasso.preds)^2) 
+  
+  lasso.results[i] <- lasso.mse
+
+}
+
+paste("OOS mse", mean(lasso.results))
+paste("OOS mse sd", sd(lasso.results))
+
+```
+
+
+
+
+
+## Ridge
+
+```{r}
+
+library(glmnet)
+
+ridge.results <- c()
+n <- 100 
+
+for (i in 1:n) 
+{
+  x <- bs(df) |> as.matrix() # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  ridge.mod <- cv.glmnet( # Innebygd kryssvalidering
+      training[,-1],
+      training[,1] ,
+      alpha = 0, # Ren RIDGE
+      type.measure = "mse",
+      standardize =T  # standariserer
+      )
+  
+  best.lambda <- ridge.mod$lambda.min # beste lambda 
+  
+  ridge.preds <- predict(ridge.mod, testing[,-1], s = best.lambda)
+  
+  ridge.mse <- mean( (testing[,1] - ridge.preds)^2) 
+  
+  ridge.results[i] <- ridge.mse
+
+}
+
+paste("OOS mse", mean(ridge.results))
+paste("OOS mse sd", sd(ridge.results))
+
+```
+
+
+
+## Elastic net
+
+
+
+```{r}
+library(caret)
+
+
+cv <- trainControl(method = "cv")
+
+grid <- expand.grid(alpha = seq(0,1,0.05),
+                    lambda = 10^seq(-3, 3, length = 100))
+
+elastic.net <- train(
+  training[,-1],
+  training[,1],
+  method = "glmnet",
+  trControl= cv,
+  tuneGrid = grid
+)
+
+
+
+```
+
+
+```{r, warning=FALSE}
+elnet.results <- c()
+elnet.alpha <- c()
+elnet.lambda <- c()
+n <- 50 
+
+for (i in 1:n) 
+{
+  x <- bs(df) |> as.matrix() # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  cv <- trainControl(method = "cv")
+  
+  elnet.mod <- train(
+    training[,-1],
+    training[,1],
+    method = "glmnet",
+    trControl= cv,
+    trace = F
+  )
+  
+  
+  alphas <- elnet.mod$
+
+  
+  elnet.preds <- predict(elnet.mod, testing[,-1])
+  
+  elnet.mse <- mean( (testing[,1] - elnet.preds)^2) 
+  
+  elnet.results[i] <- elnet.mse
+  
+  elnet.alpha[i]<- elnet.mod$bestTune$alpha
+  elnet.lambda[i]<- elnet.mod$bestTune$lambda
+
+  
+  
+}
+
+paste("OOS mse", mean(elnet.results))
+paste("OOS mse sd", sd(elnet.results))
+```
+
+
+
+
+## koeffisienter
+
+```{r}
+coef(lasso, s = lasso$lambda.min)
+```
+
+
+## Sammenligne
+
+
+```{r}
+t.test(lasso.results, ridge.results)
+```
+
+
+
+
+
+
+## RandomForest
+
+
+
+
+
+```{r, warning=FALSE}
+
+library(caret)
+
+rf.results <- c()
+n <- 10 
+
+for (i in 1:n) 
+{
+  x <- bs(df) # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  cv <- trainControl(method = "cv")
+  grid <- expand.grid(mtry = c(1,2,3,4,5,6,7,8))
+  
+  
+  
+  rf.mod <- train(
+    training[,-1],
+    training[,1],
+    trControl = cv,
+    tuneGrid = grid,
+    method = "rf",
+    ntree = 500
+  )
+
+  
+  rf.preds <- predict(rf.mod, testing[,-1])
+  
+  rf.mse <- mean( (testing[,1] - rf.preds)^2) 
+  
+  rf.results[i] <- rf.mse
+  
+}
+
+paste("OOS mse", mean(rf.results))
+paste("OOS mse sd", sd(rf.results))
+
+```
+
+
+
+
+
+## Neural net
+
+
+```{r}
+
+library(caret)
+
+nnet.results <- c()
+n <- 10 
+
+for (i in 1:n) 
+{
+  x <- bs(df) # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  cv <- trainControl(method = "cv")
+  grid <- expand.grid(size = c(1,2,3,4,5,6,7,8), decay = c(0.01, 0.05, 0.1))
+  
+  nnet.mod <- train(
+    training[,-1],
+    training[,1],
+    trControl = cv,
+    tuneGrid = grid,
+    method = "nnet",
+    ntree = 500
+  )
+  
+  
+  nnet.preds <- predict(nnet.mod, testing[,-1])
+  
+  nnet.mse <- mean( (testing[,1] - nnet.preds)^2) 
+  
+  nnet.results[i] <- nnet.mse
+  
+}
+
+paste("OOS mse", mean(nnet.results))
+paste("OOS mse sd", sd(nnet.results))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

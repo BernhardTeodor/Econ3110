@@ -1,0 +1,55 @@
+---
+title: "EksamenPrep"
+author: "Bernhard Teodor Thodesen"
+date: "Høsten 2025"
+output: pdf_document
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+```{r}
+library(caret)
+library(tidyverse)
+```
+
+
+Kryssvalidering
+
+```{r}
+
+df <- read_csv("data/Titanic-Dataset.csv")
+
+df |> 
+  summarise(across(everything(), ~sum(is.na(.))))
+
+
+df <- df |> select(-Cabin,-Embarked, -PassengerId, -Name)
+
+df |> group_by(Pclass) |> 
+  summarise(across(everything(), ~sum(is.na(.)))) 
+
+
+df <- df |> 
+  group_by(Pclass) |> 
+  mutate(Age = ifelse(is.na(Age), mean(Age, na.rm = TRUE), Age)) |> 
+  ungroup()
+
+
+
+set.seed(3110)
+
+#cv
+
+cv <- trainControl(method = "cv", number = 10)
+
+model <- train(df |> select(-Survived), 
+               df |> select(Survived) |> pull() |>  as.factor(), 
+               method = "rf",
+               trControl = cv)
+
+
+```
+

@@ -1,0 +1,308 @@
+---
+title: "Seminar2"
+author: "Bernhard Teodor Thodesen"
+date: "2025-12-13"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+
+```{r}
+n <- 1e4
+
+for(i in 1:10)
+  {
+    assign(paste0('x',i),rnorm(n))
+}
+
+d <- rbinom(n, 1,prob=0.5)+0.8*x1+0.01*x2-0.001*x3-0.001*x3**2+0.09*x4**2
+
+y <- 0.5*x5**2+x6**2+10*d+0.5*x1+0.15*x2-0.001*x3-0.001*x3**2+0.09*x4**2+rnorm(n)
+
+df <- data.frame(y,d,x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)
+
+fire <- df[,4]
+
+df[, 2:11] <- scale(df[, 2:11])
+
+```
+
+
+## Split
+
+
+```{r}
+
+set.seed(3110)
+
+split <- sample(1:nrow(df), floor(nrow(df)* 0.8 ), replace = F)
+
+training <- df[split,] |> as.matrix()
+testing <- df[-split,] |> as.matrix()
+```
+
+
+
+```{r}
+library(caret)
+
+cv <- trainControl(method = "cv")
+
+
+grid <- expand.grid(
+  alpha = 1,                     
+  lambda = seq(0.001, 0.1, length = 20)  
+)
+
+mod1 <- train(
+  training[,2:11],
+  training[,1],
+  method = "glmnet",
+  trControl = cv
+              )
+
+
+mod1
+
+
+```
+
+
+
+
+```{r}
+
+library(glmnet)
+
+
+lasso <- cv.glmnet(
+  training[,2:11] ,
+  training[,1],
+  alpha = 1,
+  type.measure = "mse"
+)
+
+
+bestlambda <- lasso$lambda.min
+
+coef(lasso, s = bestlambda)
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+
+preds <- predict(lasso, testing[,2:11], s = bestlambda )
+
+
+rmse_lasso <- mean((testing[,1] - preds)^2) |> sqrt()
+
+```
+
+
+
+
+# RIdge
+
+
+```{r}
+
+
+Ridge <- cv.glmnet(
+  training[,2:11] ,
+  training[,1],
+  alpha = 0,
+  type.measure = "mse"
+)
+
+
+Rbestlambda <- Ridge$lambda.min
+
+coef(Ridge, s = Rbestlambda)
+
+preds <- predict(Ridge, testing[,2:11], s = bestlambda )
+
+
+rmse_ridge <- mean((testing[,1] - preds)^2) |> sqrt()
+
+```
+
+
+```{r}
+
+cbind("Lasso" = coef(lasso, s = bestlambda), "Ridge" = coef(Ridge, s = Rbestlambda) )
+
+
+```
+
+
+
+```{r}
+estimates <- c()
+
+alphas <-  seq(0,1,0.015)
+
+
+for (i in alphas)
+{
+  
+  model <- cv.glmnet(
+  training[,2:11] ,
+  training[,1],
+  alpha = i,
+  type.measure = "mse")
+  
+  lam <- model$lambda.min
+  
+  preds <- predict(model, testing[,2:11], s = bestlambda )
+
+  rmse<- mean((testing[,1] - preds)^2) |> sqrt()
+  
+  estimates <- c(estimates, rmse)
+  
+}
+
+```
+
+```{r}
+
+cbind(alphas, estimates)[estimates == min(estimates)]
+```
+Det oppgave egentlig var
+
+
+
+```{r}
+
+lambdas <- c()
+
+alphas <-  seq(0,1,0.015)
+
+
+for (i in alphas)
+{
+  
+  model <- cv.glmnet(
+  training[,2:11] ,
+  training[,1],
+  alpha = i,
+  type.measure = "mse")
+  
+  lam <- model$lambda.min
+  
+  lambdas <- c(lambdas, lam)
+  
+}
+
+
+
+
+cbind(alphas, lambdas)[estimates == min(estimates)]
+
+
+
+
+```
+```{r}
+
+
+opt_model <- cv.glmnet(
+  training[,2:11],
+  training[,1],
+  alpha = cbind(alphas, lambdas)[estimates == min(estimates)][1],
+  type.measure = "mse"
+  
+)
+
+
+preds <- predict(opt_model, testing[,2:11], s = cbind(alphas, lambdas)[estimates == min(estimates)][2] )
+
+rmse_opt<- mean((testing[,1] - preds)^2) |> sqrt()
+
+
+```
+
+
+
+
+
+
+## NEural net
+
+
+```{r}
+
+library(caret)
+
+nnet.results <- c()
+n <- 50 
+
+for (i in 1:n) 
+{
+  x <- bs(df) # Bootstrap
+  
+  split <- sample(1:nrow(x), floor(nrow(x)*0.8), replace = F) #indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  cv <- trainControl(method = "cv")
+  
+  
+  
+  
+  nnet.mod <- train(
+    training[,-1],
+    training[,1],
+    trControl = cv,
+    tuneGrid = grid,
+    method = "nnet",
+    ntree = 500
+  )
+  
+  
+  nnet.preds <- predict(nnet.mod, testing[,-1])
+  
+  nnet.mse <- mean( (testing[,1] - nnet.preds)^2) 
+  
+  nnet.results[i] <- nnet.mse
+  
+}
+
+paste("OOS mse", mean(nnet.results))
+paste("OOS mse sd", sd(nnet.results))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

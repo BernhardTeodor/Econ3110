@@ -1,0 +1,188 @@
+---
+title: "Seminar2"
+author: "Bernhard Teodor Thodesen"
+date: "2025-12-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+
+## Oppgave 1 - Simulerer data
+
+
+```{r}
+
+n <-  10000
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+x3 <- rnorm(n)
+x4 <- rnorm(n)
+
+y <- 0.5*x1 + 1.9*x2 - 0.2*x2**2 - 0.6*x3 + rnorm(n, sd = 0.1)
+
+```
+
+
+### c) samle data
+
+```{r}
+df <- cbind(y,x1, x2, x3, x4) |>  as.data.frame()
+```
+
+
+
+## Oppgave 2 - OLS
+
+
+```{r}
+
+
+reg1 <- lm(y ~ x1 + x2 + I(x2^2) + x3, data = df)
+reg2 <- lm(y ~ x1 + x2 + x3, data = df)
+reg3 <- lm(y ~ x1 + x2 + x3 + x4, data = df)
+
+```
+
+
+
+## Oppgave 3 - Bootstrapping
+
+```{r}
+
+df <- df
+
+bootstrap <- function (dataframe)
+{
+  n <- nrow(dataframe)
+  samples <- sample(n, n, replace = T)
+  
+  return(dataframe[samples,])
+}
+
+```
+
+
+
+```{r}
+
+mod1 <- c()
+mod2 <- c()
+mod3 <- c()
+
+for (i in 1:1000)
+{
+  data <- bootstrap(df)
+  
+  i_train <- sample(nrow(data), nrow(data)*0.8, replace = F)
+  
+  train <- data[i_train,]
+  test <- data[-i_train,]
+  
+  
+  
+  reg1 <- lm(y ~ x1 + x2 + I(x2^2) + x3, data = train)
+  reg2 <- lm(y ~ x1 + x2 + x3, data = train)
+  reg3 <- lm(y ~ x1 + x2 + x3 + x4, data = train)
+  
+  
+  pred1 <- predict(reg1, test)
+  pred2 <- predict(reg2, test)
+  pred3 <- predict(reg3, test)
+  
+  mod1[i] <- mean((test$y - pred1)^2) |> sqrt()
+  mod2[i] <- mean((test$y - pred2)^2) |> sqrt()
+  mod3[i] <- mean((test$y - pred3)^2) |> sqrt()
+}
+
+
+model_metrics <- data.frame(
+  "Reg1" = mod1,
+  "Reg2" = mod2,
+  "Reg3" = mod3
+)
+
+
+mean(mod1); mean(mod2); mean(mod3)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+k_fold <- function(k, dataset, formula) {
+  folds <- cut(seq(1, nrow(dataset)), breaks = k, labels = FALSE)
+  estimate <- c()
+  
+  for (i in 1:k) {
+    
+    test_idx <- which(folds == i)
+    
+    test <- dataset[test_idx, ]
+    training <- dataset[-test_idx, ]
+    
+    m <- lm(as.formula(formula), data = training)
+    
+    MSE <- mean((test$y - predict(m, test))^2) |> sqrt()
+    
+    estimate <- c(estimate, MSE)
+  }
+  
+  return(estimate)
+}
+
+
+k_fold_estimates1 <- k_fold(10, df, "y ~ x1 + x2 + x3")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

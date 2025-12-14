@@ -1,0 +1,265 @@
+---
+title: "Seminar4"
+author: "Bernhard Teodor Thodesen"
+date: "2025-12-14"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = TRUE)
+```
+
+```{r}
+library(tinyplot)
+```
+
+```{r}
+set.seed(3110)
+rm(list = ls())
+n <- 2000
+s <- 2
+my <- 0
+
+z1 <- rnorm(n, mean = my, sd = s)
+z2 <- rnorm(n, mean = my, sd = s)
+
+y <- ifelse(z1^2 + z2^2 <= 1, 1, 0)
+
+plt(z1 ~ z2| y,legend =FALSE)
+```
+
+
+
+
+
+```{r}
+set.seed(3110)
+
+df <- data.frame(y, z1,z2)
+results <- NULL
+
+
+split <- sample(1:nrow(df), floor(nrow(df)*0.8), replace = F)
+
+training <- df[split,] 
+testing <- df[-split,] 
+
+
+ols.mod <- lm(y ~ z1 + z2, data = training)
+
+ols.mod$coefficients
+
+ols.pred <- predict(ols.mod, testing[,-1])
+
+ols.mse <- mean( (testing[,1] - ols.pred)^2 )
+
+results <- rbind(ols.mse)
+
+
+
+```
+
+
+
+
+```{r}
+
+library(glmnet)
+
+
+lasso <- cv.glmnet(
+  training[,-1] |>   as.matrix(),
+  training[,1],
+  alpha = 1,
+  type.measure = "mse",
+  standardize =T
+  
+  )
+
+coef(lasso, s = lasso$lambda.min)
+```
+
+```{r}
+lasso.pred <- predict(lasso, testing[,-1] |>  as.matrix()
+                      , s = lasso$lambda.min)
+
+lasso.mse <- mean((testing[,1] - lasso.pred)^2) 
+
+results <- rbind(results, lasso.mse)
+results
+
+```
+
+
+
+```{r}
+
+library(randomForest)
+
+
+rf_train <- training
+rf_test <- testing
+rf_train$y <- rf_train$y |> as.factor()
+rf_test$y <- rf_test$y |> as.factor()
+
+rf.mod <- randomForest(y ~., data = rf_train)
+rf.mod
+
+
+
+```
+
+
+
+
+
+```{r}
+
+library(caret)
+
+
+cv <- trainControl(method = "cv")
+grid <- expand.grid(mtry = c(1,2,3,4,5,6,7,8))
+
+
+
+rf.mod <- train(
+  training[,-1],
+  training[,1],
+  trControl = cv,
+  tuneGrid = grid,
+  method = "rf"
+)
+
+
+```
+
+
+
+```{r}
+rf.pred <- predict(rf.mod, testing[,-1])
+
+rf.mse <- mean( (testing[,1] - rf.pred)^2 )
+
+results <- rbind(results,rf.mse)
+
+results
+```
+
+
+## Neural net
+
+
+
+```{r}
+
+
+
+grid <- expand.grid(size = c(1,2,3,4,5,6,7,8), decay = c(0.01, 0.05, 0.1))
+
+
+nn.mod <- train(
+  training[,-1],
+  training[,1],
+  trControl = cv,
+  tuneGrid = grid,
+  method = "nnet",
+  trace = F
+  )
+
+
+
+```
+
+
+
+
+```{r}
+
+nn.pred <- predict(nn.mod, testing[,-1])
+
+nn.mse <- mean( (testing[,1] - nn.pred)^2 )
+
+results <- rbind(results,nn.mse)
+
+results
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+
+
+set.seed(3110)
+vulkan <- read_csv("~/Downloads/vulcano.csv")
+#Bootstrap for sammenlingning av algoritmer
+bootstrap_size = 10
+resample1 <- list()
+for(i in 1:bootstrap_size){
+resample1[[i]] <- sample(1:nrow(vulkan), size=nrow(vulkan),
+replace = T)
+}
+#Kryssvalidering for tuning
+cv.specs <- trainControl(method = "cv", number = 10)
+
+
+oos_rf <- map_dbl(
+        resample1,
+        function(x) {
+          data_train <- vulkan[x,]
+          data_test <- vulkan[-x,]
+          
+          #Tuner mtry med caret::train
+          m_rf <- train(Z~ (X + Y), data = data_train,
+          method = "rf", trControl = cv.specs, metric = "RMSE",
+          tuneGrid = expand.grid(mtry = c(1, 2)),
+          linout = TRUE)
+          data_test$pred <- predict(m_rf, data_test)
+          accuracy <- mean((data_test$Z - data_test$pred)^2)
+          accuracy
+          }
+  )
+print("Mean (RF):"); mean(oos_rf)
+print("Sd (RF):"); sd(oos_rf)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
