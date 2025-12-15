@@ -194,6 +194,7 @@ paste("OOS prediksjonsnoyaktighet:", mse)
 
 ```
 
+Lasso ned tunet parameter
 
 ### e
 *Tolk resultatene fra LASSO modellen - hvilke variabler later til å predikere korrupsjon best?*
@@ -209,7 +210,6 @@ Variabelen med størst effekt ser ut til å være gdp. Rikere land har mindre ko
 ### f
 
 *Gjenta c) og d) med Neural Net.Dersom neuralnet ikke konvergerer kan du sette stepmax = 1e+06 eller høyere*
-
 
 
 ```{r}
@@ -275,7 +275,7 @@ for (i in unique(train_fold$fold))
 size;decay
 
 ```
-
+NEsten akkurat samme som for Lasso bare at jeg bruker caret isteden og tuner to parametere decay og size. 
 
 ```{r}
 
