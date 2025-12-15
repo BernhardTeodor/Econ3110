@@ -14,7 +14,408 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
 ### pakker
 ```{r}
 
+library(dplyr) # Databehandling
+library(glmnet) # Elastic net
+
 ```
 
+### DATA
+
+```{r}
+df <- read.csv("data/corruption.csv")
+
+df |> dim()
+
+df |> 
+  summarise(across(everything(), ~ sum(. == -1000)/nrow(df) * 100)) # Prosent
+
+```
+
+
+
+Dimensjonen til datasettet er 2353 rader med 43 kolonner, som man kan se fra output er det mange variabler som har manglende verider. En måte å løse dette på er å fjerne alle nas.
+
+
+```{r}
+
+df |>
+  mutate(across(everything(), ~ ifelse(. == -1000, NA, .))) |> 
+  na.omit() |> 
+  dim()
+
+```
+Da ser vi at vi mangler mange observasjoner. Derfor tenker jeg det er hensiktsmessig å variablene med over 40 prosent na`s.
+
+
+
+```{r}
+
+df <- df |> 
+  select(-real_interest_rate, -stocks_traded, -poverty_gap830, -rail_lines,) |> #Variabler med mange -1000
+  mutate(across(everything(), ~ ifelse(. == -1000, NA, .))) |> # Gjør -1000 om til na 
+  na.omit() # Fjerner NA
+
+df |> dim()
+```
+Fjernet mye data. Hvis dette ikke hadde vært eksamen kunne det vært hensiktsmessig å kankje imputere noen nas med gjennomsnitt eller median.
+
+
 ### a
+
+*Standardiser variablene i datasettet, og del datasettet i én treningsdel og en testdel*
+
+```{r}
+
+df <- df |> 
+  mutate(across(where(is.double), ~ scale(.))) # Skalerer alle variabler som er numeriske
+
+
+split <- sample(1:nrow(df), floor(nrow(df)*0.8), replace = F) # 80 prosent av indeksen
+
+
+training = df[split,]
+testing = df[-split,]
+
+```
+
+### b
+
+*Definer en funksjon for K-fold kryssvalidering av en algoritme. Funksjonen skal ta som input et datasett og antall folder (K). Funksjonen skal returnere et datasett med en ny kolonne som indikerer fold.*
+
+
+```{r}
+
+kfold <- function(data, k)
+{
+  n <- nrow(data) # lengden
+  
+  tall <- rep(1:k) # vektor fra 1 til k
+  
+  folds <- rep(1:k, length.out = n) # repeterer 1 til k frem til n Så langt  det lar seg gå
+  data$fold <- folds # legger den til i datarammen
+  
+  return(data)
+}
+
+```
+
+### c
+
+*Bruk funksjonen fra b)på treningsdatasettet til å tune en LASSO modell som skal predikere korrupsjon(CPI). Dersom du ikke får til b)kan du bruke en alternativ metode. Du kan søke i domenet 0 til 0.1.*
+
+```{r}
+
+library(glmnet) # bruker denne til Lasso
+
+train_fold <- kfold(training, 10)
+
+lasso.results <- c()
+mse <- 1000000
+lambda <-  0
+
+for (i in unique(train_fold$fold))
+{
+  
+  train <- train_fold |> 
+    filter(fold != i)
+  
+  train_x <- train |> 
+    select(-CPI, -fold) |> 
+    as.matrix()
+  
+  train_y <- train |> 
+    select(CPI) |> 
+    pull()
+  
+  test <- train_fold |> 
+    filter(fold == i)
+  
+  test_x <- test |> 
+    select(-CPI, -fold) |> 
+    as.matrix()
+  
+  test_y <- test |> 
+    select(CPI) |> 
+    pull()
+  
+  lasso.mod <- glmnet(
+      train_x, train_y,
+      alpha = 1, # LASSO
+      )
+  
+  len <- length(lasso.mod$lambda)
+  
+  best.lambda <- lasso.mod$lambda[n] 
+  
+  lasso.preds <- predict(lasso.mod, test_x, s = best.lambda)
+  
+  lasso.mse <- mean((test_y-  lasso.preds)^2) 
+  
+  lasso.results <- c(lasso.results, lasso.mse)
+  
+  if (lasso.mse < mse)
+  {
+    mse <- lasso.mse
+    lambda <- best.lambda
+  }
+  
+  
+}
+
+paste("Beste lambda", lambda)
+```
+
+Kjører loopen lik antall folds. Lager "nye" train og test basert på folden. Kjører en lasso modell. Tar ut den siste lambdaen. Gjør prediksjoner regner ut mse på den utelatte folden 
+
+
+
+
+### d
+
+*Med hyperparameter-konfigurasjonen du kom frem til i c), tren modellen på hele treningsdatasettet og rapporter OOS-prediksjonsnøyaktighet.*
+
+
+```{r}
+
+
+
+Lasso <- glmnet(
+  training |> select(-CPI) |> as.matrix(),
+  training |> select(CPI) |> pull(),
+  alpha = 1
+)
+
+x <- testing |> select(-CPI) |> as.matrix()
+Lasso.pred <- predict(Lasso,x, s = lambda)
+
+y <- testing |> select(CPI) |> pull()
+mse <- mean( (y - Lasso.pred)^2 )
+
+
+paste("OOS prediksjonsnoyaktighet:", mse)
+
+```
+
+
+### e
+*Tolk resultatene fra LASSO modellen - hvilke variabler later til å predikere korrupsjon best?*
+
+```{r}
+
+coef(Lasso, s =lambda) |> round(4)
+```
+Variabelen med størst effekt ser ut til å være gdp. Rikere land har mindre korrupsjon. Ser også ut til at land med høy utdanning og mer demokratiske har mindre korrupsjon. Modellen satt bandt annet populasjon til null. 
+
+
+
+### f
+
+*Gjenta c) og d) med Neural Net.Dersom neuralnet ikke konvergerer kan du sette stepmax = 1e+06 eller høyere*
+
+
+
+```{r}
+library(caret)
+
+train_fold <- kfold(training, 10) |> select(-country, -iso3c,-Region) # Får feil med.
+
+nnet.results <- c()
+mse <- 1000000
+decay <-  0
+size <- 0
+
+for (i in unique(train_fold$fold))
+{
+  
+  train <- train_fold |> 
+    filter(fold != i)
+  
+  train_x <- train |> 
+    select(-CPI, -fold) 
+  
+  train_y <- train |> 
+    select(CPI) |> 
+    pull()
+  
+  test <- train_fold |> 
+    filter(fold == i)
+  
+  test_x <- test |> 
+    select(-CPI, -fold) 
+  
+  test_y <- test |> 
+    select(CPI) |> 
+    pull()
+  
+  grid <- expand.grid(size = c(1,2,3,4,5),
+                      decay = c(0.01, 0.05, 0.1))
+  
+  nnet.mod <- train(
+    train_x,
+    train_y,
+    tuneGrid = grid,
+    method = "nnet",
+    trace = F
+  )
+  
+  nnet.preds <- predict(nnet.mod, test_x)
+  
+  nnet.mse <- mean((test_y -  nnet.preds)^2) 
+  
+  nnet.results <- c(nnet.results, nnet.mse)
+  
+  if (nnet.mse < mse)
+  {
+    mse <- nnet.mse
+    size <- nnet.mod$bestTune[1]
+    decay <- nnet.mod$bestTune[2]
+  }
+}
+
+
+size;decay
+
+```
+
+
+
+
+
+
+
+# Oppgave 2
+
+### a
+
+Det er tre krav for at en tidsrekke skal være stasjonær: konstant varians og forventning, samt at tidsperiodene ikke korrelerer sammen. 
+
+i)
+I dette plottet ser det ut til at vi har en konstant varians og forventning, men det ser også ut til at det er en underliggende trend, som bølger opp og ned. Brudd på siste krav. Altså ikke stasjonær.
+
+ii)
+
+Her ser vi tydlig en stasjonær tidsserie. Hvor alle tre kravene er oppfylt.
+
+iii)
+
+Her ser vi at variansen øker med med tiden. Det er ikke en stasjonær tidsrekke.
+
+iv)
+
+Her ser vi at forventningen ikke er konstant over tid. Ikke stasjonær.
+
+
+### b
+
+*Last inn og plot tidsserien time_series.csv.*
+
+```{r}
+library(tseries)
+library(stats)
+library(forecast)
+library(quantmod)
+library(lubridate)
+
+
+
+time_series <- read.csv("data/time_series.csv")
+
+time_series$Time <- as.yearqtr(time_series$Time, format = "%Y-%m-%d")
+
+ts <- xts(time_series[,'Y'], order.by = time_series$Time)
+
+plot(ts)
+
+```
+
+Her ser vi åpenbart at tidsserien ikke er stasjonær.
+
+
+### c
+
+*Test om tidsserien er stajonær, forklar hvilken test du bruker, hvordan du tolker resultatet, og hvordan du løser eventuelle utfordninger med tidsserien.*
+
+For å teste stasjonæritet bruker jeg en Dickey-Fuller test. Nullhypotesen er at serien har en unit-root, som vil si at den er ikke stasjonær mot alternativ hypotese om at den er stasjonær. Vi kan sette oss et fem prosent signifikansnivå og sier dermed at vi forkaster nullhypotesen dersom vi observerer en p-verdi under 5 prosent. Hvis tidsrekken ikke er stasjonær kan vi løse dette problemet ved å ta log og ta differansen av serien. 
+
+```{r}
+adf.test(ts)
+```
+Forkaster ikke H0. 
+```{r}
+
+ts_d1 <- ts(na.omit(diff(log(ts))))
+
+adf.test(ts_d1)
+```
+Forkaster H0. Nå er tidsrekken stasjonær.
+
+### d
+*Del tidsserien opp i en treningsdel (de 80% første observasjonene) og en testdel (de 20% siste observasjonene)*
+```{r}
+
+first_80 <- 1:floor(nrow(ts_d1)*0.8)
+
+ts_d1_train <- ts_d1[first_80,]
+ts_d1_test <- ts_d1[(floor(nrow(ts_d1)*0.8) + 1):nrow(ts_d1),]
+
+
+
+```
+
+
+
+### e
+*Lag et ACF og PACF plot for tidsserien. Estimer deretter en ARIMA(p, d, q) modell på treningsdatasettet.Du skal selv avgjøre verdiene påp,d, ogq. Husk å begrunne valget av verdienep,d, ogq.*
+
+
+```{r}
+acf(ts_d1) # Får feil hvis ikke |> ts()
+```
+```{r}
+pacf(ts_d1) # Får feil hvis ikke |> ts()
+```
+
+
+```{r}
+
+arima1 <-  auto.arima(ts_d1_train ,  
+                      seasonal = F,
+                      stationary = T,
+                      stepwise = F)
+
+arima1
+
+```
+Ved å bruke auto.arima ser vi at modellen som blir valgt er en ARIMA(0,0,5) som vil si at det egentlig er en MA(5) modell.
+
+
+### f
+
+*Bruk den estimerte modellen fra c)til å lage 1-stegs framskrivninger (“1-step ahead forecasts”) over heletestdatasettet. Det vil si at dere for hver periode t + 1 i testdatasettet skal bruke modellen fra c) til å predikere . Lag et plot som viser både de faktiske verdiene og de predikerte verdiene.Hint: Bruk Arima() funksjonen for å predikere.*
+
+
+```{r}
+model <- Arima(ts_d1_test , model=arima1)
+preds <- fitted(model)
+plot.zoo(cbind(preds,ts_d1_test),plot.type = "single",
+col = c("red", "blue"))
+```
+
+Hentet litt inspirasjon til plottet fra senosorveiledningen i fjor. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
