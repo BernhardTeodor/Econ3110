@@ -145,7 +145,7 @@ for (i in unique(train_fold$fold))
   
   len <- length(lasso.mod$lambda)
   
-  best.lambda <- lasso.mod$lambda[n] 
+  best.lambda <- lasso.mod$lambda[len] 
   
   lasso.preds <- predict(lasso.mod, test_x, s = best.lambda)
   
@@ -176,9 +176,6 @@ Kjører loopen lik antall folds. Lager "nye" train og test basert på folden. Kj
 
 
 ```{r}
-
-
-
 Lasso <- glmnet(
   training |> select(-CPI) |> as.matrix(),
   training |> select(CPI) |> pull(),
@@ -278,7 +275,33 @@ size;decay
 ```
 
 
+```{r}
 
+grid <- expand.grid(size = size,
+                      decay = decay)
+
+NNET <- train(
+  training |> select(-CPI, -country, -iso3c,-Region),
+  training$CPI,
+  method = "nnet",
+  tuneGrid = data.frame(size = size, decay = decay),
+  trace = F
+
+)
+  
+
+x <- testing |> select(-CPI, -country, -iso3c,-Region) 
+NNET.pred <- predict(NNET,x)
+
+y <- testing |> select(CPI) |> pull()
+mse <- mean( (y - NNET.pred)^2 )
+
+
+paste("OOS prediksjonsnoyaktighet NNET:", mse)
+
+```
+
+Her ser det jo ut til at modellen er helt off, sammenlignet med Lasso. Veldig mye høyere MSE. Kanksje det har skjedd noe feil i algoritmen. Man vil i hvertfall foretrekke Lasso. 
 
 
 
@@ -403,6 +426,12 @@ col = c("red", "blue"))
 
 Hentet litt inspirasjon til plottet fra senosorveiledningen i fjor. 
 
+
+# Oppgave 3
+
+### a)
+
+### b)
 
 
 
