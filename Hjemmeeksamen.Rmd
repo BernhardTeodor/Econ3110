@@ -104,7 +104,7 @@ kfold <- function(data, k)
 *Bruk funksjonen fra b)på treningsdatasettet til å tune en LASSO modell som skal predikere korrupsjon(CPI). Dersom du ikke får til b)kan du bruke en alternativ metode. Du kan søke i domenet 0 til 0.1.*
 
 ```{r}
-
+set.seed(3110)
 library(glmnet) # bruker denne til Lasso
 
 train_fold <- kfold(training, 10)
@@ -176,6 +176,7 @@ Kjører loopen lik antall folds. Lager "nye" train og test basert på folden. Kj
 
 
 ```{r}
+set.seed(3110)
 Lasso <- glmnet(
   training |> select(-CPI) |> as.matrix(),
   training |> select(CPI) |> pull(),
@@ -212,6 +213,7 @@ Variabelen med størst effekt ser ut til å være gdp. Rikere land har mindre ko
 
 
 ```{r}
+set.seed(3110)
 library(caret)
 
 train_fold <- kfold(training, 10) |> select(-country, -iso3c,-Region) # Får feil med.
@@ -302,6 +304,46 @@ paste("OOS prediksjonsnoyaktighet NNET:", mse)
 ```
 
 Her ser det jo ut til at modellen er helt off, sammenlignet med Lasso. Veldig mye høyere MSE. Kanksje det har skjedd noe feil i algoritmen. Man vil i hvertfall foretrekke Lasso. 
+
+
+Har litt dårlig tid på eksamen, men jeg ville jo egnetlig kanskje gjort noe slik isteden. Brukt bootstrapping og den innebygde cv-en til caret.
+
+
+nnet.results <- c()
+n <- 10 
+
+for (i in 1:n) 
+{
+  x <- bs(df) # Bootstrap
+  indexer til test og training
+  
+  training <- x[split,] 
+  testing <- x[-split,] 
+  
+  cv <- trainControl(method = "cv")
+  grid <- expand.grid(size = c(1,2,3,4,5,6,7,8), decay = c(0.01, 0.05, 0.1))
+  
+  nnet.mod <- train(
+    training[,-1],
+    training[,1],
+    trControl = cv,
+    tuneGrid = grid,
+    method = "nnet",
+    ntree = 500
+  )
+  
+  
+  nnet.preds <- predict(nnet.mod, testing[,-1])
+  
+  nnet.mse <- mean( (testing[,1] - nnet.preds)^2) 
+  
+  nnet.results[i] <- nnet.mse
+  
+}
+
+paste("OOS mse", mean(nnet.results))
+paste("OOS mse sd", sd(nnet.results))
+
 
 
 
@@ -441,7 +483,7 @@ Lasso er lineær modell, når den får mange variabler vil den velge å fjerne/s
 
 ### c)
 
-  
+Honesty betyr at vi deler dataen inn i to deler. En brukes til å lager splittene i et decision tree. Den andre brukes til å regne ut behandlingseffektene i hver gruppe. Du minimerer risikoen ved å få svar som kommer fra tilfeldighet. 
 
 
 
