@@ -433,6 +433,12 @@ Hentet litt inspirasjon til plottet fra senosorveiledningen i fjor.
 
 ### b)
 
+Lasso er lineær modell, når den får mange variabler vil den velge å fjerne/sette til null de variablene som den ikke mener er viktige. Et problem ved dette er at hvis to variabler korrelerer så kan lasso sette en til null og den andre blir stående uten noen forklaring. Lasso vil i gjengjeld være lettere å tolke ettersom at den er lineær i parameteren og man kan se hvor stor effekt variabler har. Neural net på den andre siden er mer black box. Vi vet ikke helt hva som skjer, men den kan i mye større grad finne komplekse forhold mellom variabler. Jeg hadde nok endt opp med å bruke neural net, fordi den i større grad finner interaksjon mellom variabler kontra den lineære modellen Lasso.
+
+### c)
+
+  
+
 
 
 
