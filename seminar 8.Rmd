@@ -121,7 +121,8 @@ ar_auto <- auto.arima(df$GDPC96, ic = "bic",
 
 ar_auto |> summary()
 ```
-## Oppgave 3
+## Oppgave 
+3
 H_0: tidserien har en unit root, den er ikke stasjoner
 H_1: titsserien er stasjoenær
 
